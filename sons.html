@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Générateur de sons – VTuber</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C9A24B;--gold-light:#F3DC9A;--violet:#6A0DAD;--magenta:#B5179E;--crystal-light:#6FE7FF;--silver:#D9D9E3;
+  --font-title:'Cinzel','Times New Roman',serif;--font-ui:'Rajdhani','Segoe UI',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;padding:48px 32px 80px;color:var(--silver);font-family:var(--font-ui);
+  background:radial-gradient(ellipse 70% 40% at 50% 0%,#2b0a4a 0%,#12091f 55%,#0a0612 100%)}
+h1{font-family:var(--font-title);font-weight:800;font-size:40px;letter-spacing:.14em;text-align:center;color:var(--gold-light);text-shadow:0 0 24px rgba(181,23,158,.6)}
+.hint{max-width:780px;margin:12px auto 36px;text-align:center;font-size:20px;line-height:1.4;opacity:.88}
+#list{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.card{position:relative;display:flex;align-items:center;gap:20px;padding:18px 24px;
+  background:linear-gradient(180deg,#170a2c,#0D0D12);border:2px solid var(--gold);box-shadow:0 0 22px rgba(106,13,173,.5)}
+.card::after{content:"";position:absolute;inset:5px;border:1px solid rgba(201,162,75,.4);pointer-events:none}
+.info{flex:1;min-width:0}
+.info h2{font-family:var(--font-title);font-size:22px;letter-spacing:.08em;color:var(--gold-light)}
+.info p{font-size:18px;opacity:.85;margin-top:2px}
+.info small{display:block;margin-top:4px;font-size:16px;color:var(--crystal-light);opacity:.85}
+button{font:600 19px var(--font-ui);letter-spacing:.06em;color:var(--gold-light);cursor:pointer;background:#1a0f30;border:2px solid var(--gold);padding:9px 18px;white-space:nowrap}
+button:hover{background:#2b1650}
+button:disabled{opacity:.5;cursor:wait}
+#all{display:block;margin:0 auto 28px;font-size:21px;padding:12px 28px}
+#status{text-align:center;margin-top:20px;font-size:18px;opacity:.8;min-height:24px}
+</style>
+</head>
+<body>
+<h1>Générateur de sons</h1>
+<p class="hint">Les sons sont créés directement dans ton navigateur : cloches de cristal, nappes sombres, cors de guerre. Écoute-les, puis télécharge les fichiers WAV et mets-les dans un dossier <b>sons/</b> à côté de tes fichiers HTML.</p>
+<button id="all">Tout télécharger (9 fichiers)</button>
+<div id="list"></div>
+<div id="status"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   MOTEUR AUDIO : tout est synthétisé, rien n'est envoyé sur internet
+   ════════════════════════════════════════════════════════════ */
+const SR = 44100;
+const rand = (a, b) => a + Math.random() * (b - a);
+
+function makeIR(ctx, seconds = 2.6, decay = 3){
+  const len = Math.floor(SR * seconds), buf = ctx.createBuffer(2, len, SR);
+  for (let c = 0; c < 2; c++){
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2 - 1) * Math.pow(1 - i/len, decay);
+  }
+  return buf;
+}
+
+function normalize(buf, peak){
+  let max = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++){ const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) max = Math.max(max, Math.abs(d[i])); }
+  if (!max) return;
+  const k = peak / max;
+  for (let c = 0; c < buf.numberOfChannels; c++){ const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= k; }
+}
+
+async function render(dur, build, opts = {}){
+  const ctx = new OfflineAudioContext(2, Math.ceil(SR * dur), SR);
+  const dry = ctx.createGain(); dry.gain.value = .85; dry.connect(ctx.destination);
+  const conv = ctx.createConvolver(); conv.buffer = makeIR(ctx, opts.reverb || 2.6);
+  const wet = ctx.createGain(); wet.gain.value = opts.wet == null ? .32 : opts.wet; conv.connect(wet).connect(ctx.destination);
+  const bus = ctx.createGain(); bus.connect(dry); bus.connect(conv);
+  build(ctx, bus);
+  const buf = await ctx.startRendering();
+  /* petit fondu final pour éviter un clic (sauf boucle) */
+  if (!opts.loop){
+    const n = Math.floor(SR * .04);
+    for (let c = 0; c < 2; c++){ const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[d.length - 1 - i] *= i / n; }
+  }
+  normalize(buf, opts.peak || .89);
+  return buf;
+}
+
+/* ── Briques sonores ── */
+function env(g, t, attack, peak, decay){
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + attack);
+  g.gain.exponentialRampToValueAtTime(.0001, t + attack + decay);
+}
+
+/* Cloche de cristal : plusieurs partiels inharmoniques */
+function bell(ctx, out, t, f, dur = 2, gain = .25, bright = 1){
+  [[1, 1, 1], [2.01, .5, .7], [2.76, .35*bright, .5], [4.07, .2*bright, .34], [5.4, .12*bright, .24]].forEach(([r, a, d]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * r;
+    env(g, t, .004, gain * a, dur * d);
+    o.connect(g).connect(out); o.start(t); o.stop(t + dur * d + .1);
+  });
+}
+
+/* Nappe douce (accord) */
+function pad(ctx, out, t, freqs, dur, gain = .06){
+  freqs.forEach(f => [-6, 6].forEach(cents => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "triangle"; o.frequency.value = f; o.detune.value = cents;
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + dur * .3);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(out); o.start(t); o.stop(t + dur + .1);
+  }));
+}
+
+function noiseSrc(ctx, dur){
+  const buf = ctx.createBuffer(1, Math.ceil(SR * dur), SR), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+  const s = ctx.createBufferSource(); s.buffer = buf; return s;
+}
+
+/* Souffle qui monte ou descend */
+function whoosh(ctx, out, t, dur, fFrom, fTo, peak = .4, peakAt = .5){
+  const n = noiseSrc(ctx, dur + .1), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = "bandpass"; f.Q.value = .9;
+  f.frequency.setValueAtTime(fFrom, t); f.frequency.exponentialRampToValueAtTime(fTo, t + dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + dur * peakAt);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  n.connect(f).connect(g).connect(out); n.start(t); n.stop(t + dur + .1);
+}
+
+/* Grosse caisse / boom grave */
+function boom(ctx, out, t, f0 = 120, f1 = 38, dur = .9, gain = .9){
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * .8);
+  env(g, t, .004, gain, dur);
+  o.connect(g).connect(out); o.start(t); o.stop(t + dur + .1);
+}
+
+/* Cor de guerre */
+function horn(ctx, out, t, f, dur, gain = .22){
+  [f, f * 1.5].forEach((fr, k) => [0, 7].forEach(cents => {
+    const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    o.type = "sawtooth"; o.frequency.value = fr; o.detune.value = cents;
+    lp.type = "lowpass"; lp.Q.value = 2;
+    lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(1300, t + dur * .45); lp.frequency.exponentialRampToValueAtTime(400, t + dur);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain * (k ? .6 : 1), t + dur * .4);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(lp).connect(g).connect(out); o.start(t); o.stop(t + dur + .1);
+  }));
+}
+
+/* ════════════════════════════════════════════════════════════
+   LES SONS
+   ════════════════════════════════════════════════════════════ */
+const SOUNDS = [
+  { id:"follow", name:"Follow", file:"follow.wav", dur:2.8, use:"Alerte nouveau follower : deux cloches de cristal cristallines.",
+    build:(c, o) => { bell(c, o, 0, 880, 2, .3); bell(c, o, .13, 1318.5, 2.2, .28); bell(c, o, .26, 1760, 1.8, .12, 1.6); } },
+
+  { id:"sub", name:"Sub", file:"sub.wav", dur:3.4, use:"Alerte abonnement : arpège mineur sur une nappe chaude.",
+    build:(c, o) => { [587.3, 698.5, 880, 1174.7].forEach((f, i) => bell(c, o, i*.14, f, 2.2, .26));
+      pad(c, o, 0, [146.8, 220, 349.2], 3, .07); } },
+
+  { id:"resub", name:"Resub", file:"resub.wav", dur:3.8, use:"Alerte réabonnement : montée en cinq notes et basse profonde.",
+    build:(c, o) => { [440, 523.3, 659.3, 880, 1046.5].forEach((f, i) => bell(c, o, i*.12, f, i === 4 ? 3 : 2, .24));
+      pad(c, o, 0, [110, 164.8, 220], 3.4, .08); boom(c, o, 0, 90, 45, 1, .35); } },
+
+  { id:"gift", name:"Sub offert", file:"gift.wav", dur:3.4, use:"Alerte sub offert : pluie d'étincelles de cristal.",
+    build:(c, o) => { const sc = [880, 987.8, 1175, 1318.5, 1568, 1760, 1975.5, 2349];
+      for (let i = 0; i < 14; i++) bell(c, o, i*.075 + rand(0, .03), sc[Math.floor(rand(0, sc.length))], 1.4, .15, 1.4);
+      bell(c, o, 1.1, 1175, 2.2, .26); bell(c, o, 1.1, 1760, 2.2, .18); } },
+
+  { id:"donation", name:"Don", file:"donation.wav", dur:3.4, use:"Alerte don : éclat doré puis accord lumineux.",
+    build:(c, o) => { bell(c, o, 0, 2093, 1.2, .2, 2); bell(c, o, .07, 2637, 1.2, .18, 2);
+      [784, 987.8, 1175].forEach(f => bell(c, o, .2, f, 2.4, .2)); pad(c, o, .15, [196, 293.7, 392], 3, .06); } },
+
+  { id:"raid", name:"Raid", file:"raid.wav", dur:4.6, use:"Alerte raid : tambours, cor de guerre et gong.",
+    build:(c, o) => { boom(c, o, 0, 130, 45, .8, .9); boom(c, o, .5, 130, 45, .8, .8);
+      whoosh(c, o, 0, 1.1, 200, 3000, .3, .85);
+      horn(c, o, .9, 110, 2.6, .24); bell(c, o, 1.0, 98, 3.4, .35, .5); bell(c, o, 1.0, 196, 3, .18, .6); } },
+
+  { id:"bits", name:"Bits", file:"bits.wav", dur:2.2, use:"Alerte bits : arpège électrique, rapide et brillant.",
+    build:(c, o) => { [987.8, 1175, 1480, 1975.5, 2349].forEach((f, i) => bell(c, o, i*.06, f, 1.1, .2, 1.7)); } },
+
+  { id:"stinger", name:"Stinger de transition", file:"stinger.wav", dur:3.0, use:"Transition de scène (3 s) : souffle, boom et éclat pile à 1,0 s, le point de coupure.",
+    build:(c, o) => { whoosh(c, o, 0, 1.0, 180, 4200, .55, .92);
+      boom(c, o, 1.0, 110, 38, 1, .9); bell(c, o, 1.0, 440, 1.9, .3); bell(c, o, 1.0, 880, 1.9, .16, 1.4);
+      for (let i = 0; i < 10; i++) bell(c, o, 1.05 + i*.06, rand(1500, 3200), .9, .06, 1.6);
+      whoosh(c, o, 1.5, 1.4, 4200, 300, .4, .3); } },
+
+  { id:"ambiance", name:"Ambiance (boucle de 32 s)", file:"ambiance.wav", dur:32, loop:true, use:"Musique d'attente sans coupure pour Starting Soon et Be Right Back. À mettre en boucle dans une source Média d'OBS.",
+    build:(c, o) => {
+      const q = f => Math.round(f * 32) / 32;                       // fréquences calées pour boucler sans clic
+      [[55, .06, 2], [82.4, .05, 3], [110, .045, 2], [164.8, .035, 4], [220, .03, 3], [329.6, .018, 5]].forEach(([f, gn, k]) => {
+        [-1/32, 1/32].forEach(d => {
+          const osc = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+          osc.type = "sine"; osc.frequency.value = q(f) + d;
+          g.gain.value = gn * .55;
+          lfo.frequency.value = k / 32; lg.gain.value = gn * .45;    // k cycles entiers sur 32 s
+          lfo.connect(lg).connect(g.gain);
+          osc.connect(g).connect(o); osc.start(0); lfo.start(0);
+        });
+      });
+      /* souffle de vent : s'éteint aux deux extrémités pour une boucle parfaite */
+      const n = noiseSrc(c, 32), lp = c.createBiquadFilter(), ng = c.createGain();
+      lp.type = "lowpass"; lp.frequency.value = 500;
+      const curve = new Float32Array(2048);
+      for (let i = 0; i < curve.length; i++) curve[i] = .05 * Math.pow(Math.sin(Math.PI * 2 * i / curve.length), 2);
+      ng.gain.setValueCurveAtTime(curve, 0, 31.9);
+      n.connect(lp).connect(ng).connect(o); n.start(0);
+      /* quelques cloches lointaines (queues terminées avant la fin) */
+      [[2, 293.7], [7.5, 440], [12, 349.2], [17, 523.3], [22, 392]].forEach(([t, f]) => bell(c, o, t, f, 7, .09, .6));
+    }, opts:{loop:true, reverb:3.2, wet:.5, peak:.7} }
+];
+
+/* ════════════════════════════════════════════════════════════
+   WAV + LECTURE
+   ════════════════════════════════════════════════════════════ */
+function toWav(buf){
+  const ch = buf.numberOfChannels, len = buf.length, ab = new ArrayBuffer(44 + len * ch * 2), v = new DataView(ab);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + len*ch*2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, buf.sampleRate, true); v.setUint32(28, buf.sampleRate*ch*2, true); v.setUint16(32, ch*2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, len*ch*2, true);
+  const data = []; for (let c = 0; c < ch; c++) data.push(buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++){
+    const s = Math.max(-1, Math.min(1, data[c][i])); v.setInt16(o, s < 0 ? s*0x8000 : s*0x7FFF, true); o += 2;
+  }
+  return new Blob([ab], {type:"audio/wav"});
+}
+
+const cache = {};
+async function getBuffer(s){
+  if (!cache[s.id]) cache[s.id] = await render(s.dur, s.build, s.opts || {});
+  return cache[s.id];
+}
+let playCtx, playing = null;
+async function playSound(s, btn){
+  btn.disabled = true; btn.textContent = "Génération…";
+  const buf = await getBuffer(s);
+  btn.disabled = false; btn.textContent = playing && playing.id === s.id ? "■ Arrêter" : "▶ Écouter";
+  playCtx = playCtx || new AudioContext();
+  if (playing){ try { playing.src.stop(); } catch(e){} const same = playing.id === s.id; document.querySelectorAll(".play").forEach(b => b.textContent = "▶ Écouter"); playing = null; if (same) return; }
+  const src = playCtx.createBufferSource(); src.buffer = buf; src.loop = !!s.loop; src.connect(playCtx.destination); src.start();
+  playing = {id:s.id, src}; btn.textContent = "■ Arrêter";
+  src.onended = () => { if (playing && playing.src === src){ playing = null; btn.textContent = "▶ Écouter"; } };
+}
+async function download(s, btn){
+  if (btn){ btn.disabled = true; btn.textContent = "Génération…"; }
+  const blob = toWav(await getBuffer(s));
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = s.file; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  if (btn){ btn.disabled = false; btn.textContent = "⬇ Télécharger"; }
+}
+
+/* ── Interface ── */
+const list = document.getElementById("list");
+SOUNDS.forEach(s => {
+  const el = document.createElement("div"); el.className = "card";
+  el.innerHTML = `<div class="info"><h2>${s.name}</h2><p>${s.use}</p><small>${s.file} · ${s.dur} s${s.loop ? " · boucle parfaite" : ""}</small></div>
+    <button class="play">▶ Écouter</button><button class="dl">⬇ Télécharger</button>`;
+  el.querySelector(".play").onclick = e => playSound(s, e.currentTarget);
+  el.querySelector(".dl").onclick = e => download(s, e.currentTarget);
+  list.appendChild(el);
+});
+document.getElementById("all").onclick = async e => {
+  const b = e.currentTarget, st = document.getElementById("status"); b.disabled = true;
+  for (let i = 0; i < SOUNDS.length; i++){
+    st.textContent = `Génération ${i + 1} / ${SOUNDS.length} : ${SOUNDS[i].file}`;
+    await download(SOUNDS[i]); await new Promise(r => setTimeout(r, 500));
+  }
+  st.textContent = "Terminé. Si ton navigateur a bloqué des téléchargements, autorise-les puis recommence.";
+  b.disabled = false;
+};
+</script>
+</body>
+</html>
