@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Overlay en jeu – VTuber</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   1) VARIABLES — change tes couleurs et positions ici
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --violet-deep:#4B0082;
+  --violet:#6A0DAD;
+  --magenta:#B5179E;
+  --charcoal:#0D0D12;
+  --gold:#C9A24B;
+  --gold-light:#F3DC9A;
+  --crystal:#3FA9FF;
+  --crystal-light:#6FE7FF;
+  --crimson:#D6204E;
+  --silver:#D9D9E3;
+
+  --font-title:'Cinzel','Times New Roman',serif;
+  --font-ui:'Rajdhani','Segoe UI',sans-serif;
+
+  /* Cadre webcam / VTuber (en pixels sur 1920x1080) */
+  --cam-x:60px; --cam-y:470px; --cam-w:440px; --cam-h:400px;
+  /* Zone de chat */
+  --chat-x:1480px; --chat-y:300px; --chat-w:400px; --chat-h:590px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:transparent}
+
+/* Fond TRANSPARENT : la scène ne dessine que les éléments de l'overlay */
+#stage{
+  position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+  transform-origin:center center;overflow:hidden;background:transparent;
+}
+/* Aperçu dans un navigateur : ajoute ?preview à l'URL pour voir un faux fond de jeu */
+#stage.preview{
+  background:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 40px,transparent 40px 80px),
+    linear-gradient(135deg,#2d3a55,#161b2b);
+}
+
+/* ═══════ CADRE WEBCAM / VTUBER ═══════ */
+#cam{position:absolute;left:var(--cam-x);top:var(--cam-y);width:var(--cam-w);height:var(--cam-h)}
+.camGlow{
+  position:absolute;inset:-4px;pointer-events:none;
+  box-shadow:0 0 36px 6px rgba(106,13,173,.8),0 0 90px 14px rgba(181,23,158,.35);
+  animation:camPulse 4.5s ease-in-out infinite;
+}
+@keyframes camPulse{0%,100%{opacity:.45}50%{opacity:1}}
+.camFrame{
+  position:absolute;inset:0;pointer-events:none;
+  border:6px solid transparent;
+  border-image:linear-gradient(135deg,#F3DC9A,#C9A24B 38%,#7a5a1c 62%,#C9A24B) 1;
+  box-shadow:inset 0 0 70px rgba(75,0,130,.5);
+}
+.camFrame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(201,162,75,.5)}
+.camShine{
+  position:absolute;inset:0;padding:6px;pointer-events:none;
+  background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.95) 50%,transparent 60%);
+  background-size:300% 100%;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:camSweep 7s linear infinite;
+}
+@keyframes camSweep{from{background-position:200% 0}to{background-position:-100% 0}}
+.camGem{
+  position:absolute;left:50%;top:-12px;width:20px;height:20px;margin-left:-10px;
+  background:linear-gradient(135deg,var(--crystal-light),var(--violet));
+  border:2px solid var(--gold);transform:rotate(45deg);animation:gem 3.5s ease-in-out infinite;
+}
+@keyframes gem{0%,100%{box-shadow:0 0 8px rgba(63,169,255,.5)}50%{box-shadow:0 0 26px rgba(111,231,255,.95)}}
+
+#nameplate{
+  position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;white-space:nowrap;
+  padding:8px 38px;background:linear-gradient(180deg,#1a0f30,var(--charcoal));
+  border:2px solid var(--gold);box-shadow:0 0 22px rgba(106,13,173,.7);
+  font-family:var(--font-title);font-weight:800;font-size:28px;letter-spacing:.1em;
+  background-clip:padding-box;color:var(--gold-light);
+}
+#nameplate::before,#nameplate::after{
+  content:"";position:absolute;top:50%;width:14px;height:14px;margin-top:-7px;
+  background:var(--charcoal);border:2px solid var(--gold);transform:rotate(45deg);
+}
+#nameplate::before{left:-9px}
+#nameplate::after{right:-9px}
+
+/* Engrenages (coins du cadre et en-tête du chat) */
+.gearWrap{position:absolute}
+.gearWrap svg{display:block;animation:spin var(--dur,40s) linear infinite;will-change:transform}
+.gearWrap.rev svg{animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════ CHAT ═══════ */
+#chat{
+  position:absolute;left:var(--chat-x);top:var(--chat-y);width:var(--chat-w);height:var(--chat-h);
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(24,12,46,.84),rgba(13,13,18,.84));
+  border:2px solid var(--gold);
+  box-shadow:0 0 30px rgba(106,13,173,.55),inset 0 0 40px rgba(75,0,130,.25);
+}
+#chat .corner{position:absolute;width:14px;height:14px;background:var(--charcoal);border:2px solid var(--gold);transform:rotate(45deg)}
+#chat .corner.tl{left:-9px;top:-9px}
+#chat .corner.tr{right:-9px;top:-9px}
+#chat .corner.bl{left:-9px;bottom:-9px}
+#chat .corner.br{right:-9px;bottom:-9px}
+#chatHead{
+  height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;
+  border-bottom:1px solid rgba(201,162,75,.6);
+  font-family:var(--font-title);font-weight:800;font-size:24px;letter-spacing:.14em;color:var(--gold-light);
+}
+#chatHead .status{margin-left:auto;width:12px;height:12px;background:var(--crystal-light);transform:rotate(45deg);animation:gem 3.5s ease-in-out infinite}
+#msgs{
+  flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:12px;padding:14px 18px 16px;
+  -webkit-mask-image:linear-gradient(transparent 0,#000 22%);mask-image:linear-gradient(transparent 0,#000 22%);
+}
+.msg{
+  flex:none;border-left:3px solid var(--violet);padding-left:12px;
+  font-family:var(--font-ui);font-weight:500;font-size:24px;line-height:1.2;color:var(--silver);
+  overflow-wrap:anywhere;
+}
+.msg .u{font-weight:700;margin-right:8px;text-shadow:0 0 10px rgba(0,0,0,.6)}
+.msg.action .t{font-style:italic}
+.msg img.emote{height:1.55em;vertical-align:middle;margin:-2px 2px 0}
+.msg.sys{border-left-color:var(--gold);background:linear-gradient(90deg,rgba(181,23,158,.28),transparent)}
+
+/* ═══════ BARRE D'INFOS ═══════ */
+#bar{
+  position:absolute;left:40px;right:40px;bottom:28px;height:84px;
+  display:grid;grid-template-columns:1fr 1fr 1.55fr 1.15fr;align-items:center;
+  background:linear-gradient(180deg,rgba(26,14,48,.93),rgba(10,8,16,.95));
+  border-top:2px solid var(--gold);border-bottom:2px solid var(--gold);
+  box-shadow:0 0 30px rgba(106,13,173,.55);
+}
+#bar::before,#bar::after{
+  content:"";position:absolute;top:50%;width:22px;height:22px;margin-top:-11px;
+  background:var(--charcoal);border:2px solid var(--gold);transform:rotate(45deg);
+}
+#bar::before{left:-12px}
+#bar::after{right:-12px}
+.cell{position:relative;padding:0 30px;min-width:0}
+.cell+.cell::before{
+  content:"";position:absolute;left:0;top:6px;bottom:6px;width:1px;
+  background:linear-gradient(transparent,var(--gold),transparent);
+}
+.cell .lab{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--font-ui);font-weight:600;font-size:19px;letter-spacing:.16em;color:var(--gold);
+}
+.cell .lab i{display:inline-block;width:9px;height:9px;transform:rotate(45deg);background:var(--crystal-light);box-shadow:0 0 10px var(--crystal-light)}
+.cell.sub .lab i{background:var(--magenta);box-shadow:0 0 10px var(--magenta)}
+.cell .val{
+  font-family:var(--font-title);font-weight:600;font-size:32px;line-height:1.15;color:var(--silver);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cell.fol .val{text-shadow:0 0 16px rgba(111,231,255,.55)}
+.cell.sub .val{text-shadow:0 0 16px rgba(181,23,158,.8)}
+
+/* Objectif */
+.goalTop{display:flex;justify-content:space-between;align-items:baseline}
+.goalNum{font-family:var(--font-ui);font-weight:700;font-size:24px;color:var(--gold-light);letter-spacing:.06em}
+.goalBar{position:relative;height:20px;margin-top:6px;border:2px solid var(--gold);background:#08060d;padding:2px}
+.goalFill{position:relative;height:100%;width:0;overflow:hidden;background:linear-gradient(90deg,var(--violet-deep),var(--magenta) 65%,var(--crystal-light))}
+.goalFill::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);
+  background-size:250% 100%;animation:sweep 3.2s linear infinite;
+}
+@keyframes sweep{from{background-position:150% 0}to{background-position:-100% 0}}
+.goalBar .tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(201,162,75,.55)}
+
+/* Réseaux */
+.cell.soc{text-align:center}
+.cell.soc .lab{justify-content:center}
+#socVal{font-size:28px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3DC9A"/>
+      <stop offset=".5" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#7a5a1c"/>
+    </linearGradient>
+    <radialGradient id="sunG" cx="40%" cy="60%" r="70%">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset=".45" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#B5179E"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<div id="stage">
+
+  <!-- ═══ EMPLACEMENT WEBCAM / VTUBER ═══
+       L'intérieur du cadre est transparent : place ta source (webcam, VTuber)
+       derrière cet overlay dans OBS, à la position et taille du cadre. -->
+  <div id="cam">
+    <div class="camGlow"></div>
+    <div class="camFrame"></div>
+    <div class="camShine"></div>
+    <div class="camGem"></div>
+    <div id="nameplate">
+      <svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="url(#sunG)"/><circle cx="16" cy="11.5" r="10.2" fill="#0D0D12"/></svg>
+      <span id="nameText"></span>
+    </div>
+  </div>
+
+  <!-- ═══ CHAT ═══ -->
+  <div id="chat">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div id="chatHead">
+      <svg width="28" height="28" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="url(#sunG)"/><circle cx="16" cy="11.5" r="10.2" fill="#1a0f30"/></svg>
+      <span>Chat</span><span class="status"></span>
+    </div>
+    <div id="msgs"></div>
+  </div>
+
+  <!-- ═══ BARRE D'INFOS ═══ -->
+  <div id="bar">
+    <div class="cell fol">
+      <div class="lab"><i></i>Dernier follower</div>
+      <div class="val" id="folVal">—</div>
+    </div>
+    <div class="cell sub">
+      <div class="lab"><i></i>Dernier sub</div>
+      <div class="val" id="subVal">—</div>
+    </div>
+    <div class="cell goal">
+      <div class="goalTop">
+        <div class="lab"><i></i><span id="goalLabel"></span></div>
+        <div class="goalNum" id="goalNum">0 / 0</div>
+      </div>
+      <div class="goalBar" id="goalBar"><div class="goalFill" id="goalFill"></div></div>
+    </div>
+    <div class="cell soc">
+      <div class="lab" id="socLab"></div>
+      <div class="val" id="socVal"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   2) CONFIGURATION
+   ════════════════════════════════════════════════════════════
+   Paramètres d'URL (à ajouter après le nom du fichier) :
+     ?channel=tonpseudo   → branche le chat Twitch en direct (sans mot de passe)
+     ?name=TonPseudo      → nom affiché sous le cadre
+     ?goal=500&current=132 → objectif de followers
+     ?follower=Nom  ?sub=Nom → dernier follower / sub (sinon valeurs mémorisées)
+     ?demo=1 / ?demo=0    → force le mode démo (faux chat) ou le coupe
+     ?preview             → affiche un faux fond de jeu pour tester dans un navigateur
+*/
+const CONFIG = {
+  pseudo:  "TonPseudo",
+  channel: "",                    // ton pseudo Twitch en minuscules (ex : "tonpseudo")
+  goalLabel: "Objectif followers",
+  goalTarget: 500,
+  goalCurrent: 0,
+  maxMessages: 14,
+  hideCommands: true,             // cache les messages qui commencent par "!"
+  hideUsers: ["nightbot", "streamelements", "streamlabs", "moobot", "fossabot"],
+  socials: [
+    { label: "Twitter / X", value: "@TonPseudo" },
+    { label: "Discord",     value: "discord.gg/tonlien" },
+    { label: "YouTube",     value: "@TonPseudo" },
+    { label: "TikTok",      value: "@TonPseudo" }
+  ],
+  socialInterval: 4
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get("channel")) CONFIG.channel = params.get("channel").toLowerCase().replace(/^#/, "");
+if (params.get("name"))    CONFIG.pseudo = params.get("name");
+if (params.get("goal"))    CONFIG.goalTarget = +params.get("goal");
+const DEMO = params.has("demo") ? params.get("demo") !== "0" : !CONFIG.channel;   // démo si aucun chat branché
+
+/* ════════════════════════════════════════════════════════════
+   3) MISE À L'ÉCHELLE
+   ════════════════════════════════════════════════════════════ */
+const stage = document.getElementById("stage");
+if (params.has("preview")) stage.classList.add("preview");
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+/* ════════════════════════════════════════════════════════════
+   4) ÉTAT MÉMORISÉ (survit au rechargement dans OBS)
+   ════════════════════════════════════════════════════════════ */
+const KEY = "overlay_en_jeu_state";
+const state = { follower:"—", sub:"—", current:CONFIG.goalCurrent };
+try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch(e){}
+if (params.get("follower")) state.follower = params.get("follower");
+if (params.get("sub"))      state.sub      = params.get("sub");
+if (params.get("current"))  state.current  = +params.get("current");
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} };
+
+/* ════════════════════════════════════════════════════════════
+   5) TEXTES FIXES
+   ════════════════════════════════════════════════════════════ */
+document.getElementById("nameText").textContent = CONFIG.pseudo;
+document.getElementById("goalLabel").textContent = CONFIG.goalLabel;
+(function ticks(){
+  const bar = document.getElementById("goalBar");
+  [25, 50, 75].forEach(p => bar.insertAdjacentHTML("beforeend", `<span class="tick" style="left:${p}%"></span>`));
+})();
+
+/* ════════════════════════════════════════════════════════════
+   6) ENGRENAGES DÉCORATIFS (coins du cadre webcam)
+   ════════════════════════════════════════════════════════════ */
+function makeGear(parent, cx, cy, teeth, ro, ri, durSec, reverse){
+  const size = (ro + 6) * 2, c = size / 2, step = Math.PI * 2 / teeth;
+  const pol = (r, a) => [(c + r*Math.cos(a)).toFixed(1), (c + r*Math.sin(a)).toFixed(1)];
+  const pts = [];
+  for (let i = 0; i < teeth; i++){
+    const a = i * step;
+    pts.push(pol(ri, a - step*.30), pol(ro, a - step*.17), pol(ro, a + step*.17), pol(ri, a + step*.30));
+  }
+  const d = "M" + pts.map(p => p.join(",")).join("L") + "Z";
+  let spokes = "";
+  for (let i = 0; i < 6; i++){
+    const a = i * Math.PI / 3, p1 = pol(ri*.30, a), p2 = pol(ri*.80, a);
+    spokes += `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="#C9A24B" stroke-opacity=".7" stroke-width="2"/>`;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "gearWrap" + (reverse ? " rev" : "");
+  wrap.style.cssText = `left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;--dur:${durSec}s`;
+  wrap.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <path d="${d}" fill="#0e0d14" stroke="url(#goldG)" stroke-width="2.6" stroke-linejoin="round"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.82}" fill="none" stroke="#C9A24B" stroke-opacity=".55" stroke-width="1.5"/>
+    ${spokes}
+    <circle cx="${c}" cy="${c}" r="${ri*.30}" fill="#07060c" stroke="url(#goldG)" stroke-width="2"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.10}" fill="#C9A24B"/>
+  </svg>`;
+  parent.appendChild(wrap);
+}
+(function camGears(){
+  const cam = document.getElementById("cam");
+  const W = cam.offsetWidth, H = cam.offsetHeight;
+  makeGear(cam, 0, 0, 12, 36, 29, 36, false);
+  makeGear(cam, W, 0, 12, 36, 29, 36, true);
+  makeGear(cam, 0, H, 12, 36, 29, 36, true);
+  makeGear(cam, W, H, 12, 36, 29, 36, false);
+})();
+
+/* ════════════════════════════════════════════════════════════
+   7) BARRE D'INFOS : mises à jour animées
+   ════════════════════════════════════════════════════════════ */
+const folEl = document.getElementById("folVal"), subEl = document.getElementById("subVal");
+const goalFill = document.getElementById("goalFill"), goalNum = document.getElementById("goalNum");
+folEl.textContent = state.follower; subEl.textContent = state.sub;
+
+function swapText(el, text){
+  gsap.timeline()
+    .to(el, {y:-14, opacity:0, duration:.2, ease:"power2.in"})
+    .call(() => { el.textContent = text; })
+    .fromTo(el, {y:16, opacity:0}, {y:0, opacity:1, duration:.45, ease:"power3.out"})
+    .fromTo(el, {scale:1.08, transformOrigin:"left center"}, {scale:1, duration:.5, ease:"elastic.out(1,.5)"}, "<");
+}
+const goalAnim = {v:0};
+function renderGoal(){
+  const t = Math.max(1, CONFIG.goalTarget);
+  goalNum.textContent = `${Math.round(goalAnim.v)} / ${t}`;
+  goalFill.style.width = Math.min(100, goalAnim.v / t * 100) + "%";
+}
+function setGoal(current, target){
+  if (target) CONFIG.goalTarget = target;
+  state.current = current; save();
+  gsap.to(goalAnim, {v:current, duration:1.2, ease:"power2.out", onUpdate:renderGoal});
+}
+
+/* ── API publique : à appeler depuis tes alertes / StreamElements / Streamlabs ── */
+window.Overlay = {
+  setFollower(name){ state.follower = name; save(); swapText(folEl, name); },
+  setSub(name){ state.sub = name; save(); swapText(subEl, name); },
+  setGoal,
+  addFollower(name){ this.setFollower(name); setGoal(state.current + 1); },
+  addMessage(user, text, color){ addMessage({user, html:esc(text), color}); },
+  show(){ intro.play(); },
+  hide(){ intro.reverse(); }
+};
+
+/* ════════════════════════════════════════════════════════════
+   8) RÉSEAUX (rotation)
+   ════════════════════════════════════════════════════════════ */
+const socLab = document.getElementById("socLab"), socVal = document.getElementById("socVal");
+let socIdx = 0;
+function showSocial(){
+  const it = CONFIG.socials[socIdx % CONFIG.socials.length]; socIdx++;
+  socLab.innerHTML = `<i></i>${it.label}`; socVal.textContent = it.value;
+  const kids = [socLab, socVal];
+  gsap.fromTo(kids, {opacity:0, y:12}, {opacity:1, y:0, duration:.55, stagger:.08, ease:"power2.out"});
+  gsap.to(kids, {opacity:0, y:-10, duration:.45, delay:CONFIG.socialInterval - .5, ease:"power1.in"});
+}
+
+/* ════════════════════════════════════════════════════════════
+   9) CHAT
+   ════════════════════════════════════════════════════════════ */
+const msgsEl = document.getElementById("msgs");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PALETTE = ["#6FE7FF","#F3DC9A","#D77CE8","#8fb4ff","#ff8fa8","#9be8b0"];
+
+function readable(hex, user){
+  if (!/^#[0-9a-f]{6}$/i.test(hex || "")) {
+    let h = 0; for (const ch of user) h = (h*31 + ch.charCodeAt(0)) | 0;
+    return PALETTE[Math.abs(h) % PALETTE.length];
+  }
+  let [r,g,b] = [1,3,5].map(i => parseInt(hex.substr(i,2),16));
+  const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  if (lum < .45){ const k = (.45 - lum) * 1.6; r += (255-r)*k; g += (255-g)*k; b += (255-b)*k; }
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+function addMessage({user, html, color, action, sys}){
+  const el = document.createElement("div");
+  el.className = "msg" + (action ? " action" : "") + (sys ? " sys" : "");
+  const c = readable(color, user);
+  el.innerHTML = `<span class="u" style="color:${c}">${esc(user)}</span><span class="t"${action ? ` style="color:${c}"` : ""}>${html}</span>`;
+  msgsEl.appendChild(el);
+  gsap.from(el, {opacity:0, x:50, duration:.5, ease:"power3.out"});
+  /* supprime les messages devenus invisibles (au-dessus de la zone) */
+  const top = msgsEl.getBoundingClientRect().top;
+  while (msgsEl.children.length > 1 &&
+         (msgsEl.firstChild.getBoundingClientRect().bottom < top - 10 || msgsEl.children.length > CONFIG.maxMessages)){
+    msgsEl.removeChild(msgsEl.firstChild);
+  }
+}
+
+/* Remplace les emotes Twitch (tag "emotes") par leurs images */
+function renderEmotes(text, emotesTag){
+  const chars = Array.from(text);
+  if (!emotesTag) return esc(text);
+  const ranges = [];
+  emotesTag.split("/").forEach(part => {
+    const [id, pos] = part.split(":"); if (!pos) return;
+    pos.split(",").forEach(p => { const [s,e] = p.split("-").map(Number); ranges.push({s, e, id}); });
+  });
+  ranges.sort((a,b) => a.s - b.s);
+  let out = "", i = 0;
+  for (const r of ranges){
+    out += esc(chars.slice(i, r.s).join(""));
+    out += `<img class="emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${r.id}/default/dark/2.0" alt="">`;
+    i = r.e + 1;
+  }
+  return out + esc(chars.slice(i).join(""));
+}
+
+/* Connexion anonyme au chat Twitch (lecture seule, aucun mot de passe requis) */
+function connectChat(){
+  const ws = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+  ws.onopen = () => {
+    ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands");
+    ws.send("PASS SCHMOOCHIEPOO");
+    ws.send("NICK justinfan" + Math.floor(10000 + Math.random()*89999));
+    ws.send("JOIN #" + CONFIG.channel);
+  };
+  ws.onmessage = ev => ev.data.split("\r\n").filter(Boolean).forEach(line => {
+    if (line.startsWith("PING")) return ws.send("PONG :tmi.twitch.tv");
+    const m = line.match(/^@(\S+) :(\S+) (PRIVMSG|USERNOTICE) #\S+(?: :(.*))?$/);
+    if (!m) return;
+    const tags = {}; m[1].split(";").forEach(t => { const i = t.indexOf("="); tags[t.slice(0,i)] = t.slice(i+1).replace(/\\s/g," "); });
+    const login = m[2].split("!")[0];
+    const name = tags["display-name"] || login;
+
+    if (m[3] === "PRIVMSG"){
+      let text = m[4] || "", action = false;
+      if (text.startsWith("\u0001ACTION")){ text = text.replace(/^\u0001ACTION |\u0001$/g, ""); action = true; }
+      if (CONFIG.hideUsers.includes(login.toLowerCase())) return;
+      if (CONFIG.hideCommands && text.startsWith("!")) return;
+      addMessage({user:name, html:renderEmotes(text.slice(0, 220), tags.emotes), color:tags.color, action});
+    } else {
+      /* Abonnements détectés automatiquement via le chat */
+      const id = tags["msg-id"];
+      if (id === "sub" || id === "resub"){
+        Overlay.setSub(name);
+        addMessage({user:"✦ Nouveau sub", html:esc(name), sys:true, color:"#F3DC9A"});
+      } else if (id === "subgift"){
+        const who = tags["msg-param-recipient-display-name"] || name;
+        Overlay.setSub(who);
+        addMessage({user:"✦ Sub offert", html:esc(`${name} → ${who}`), sys:true, color:"#F3DC9A"});
+      }
+    }
+  });
+  ws.onclose = () => setTimeout(connectChat, 5000);
+  ws.onerror = () => ws.close();
+}
+
+/* ════════════════════════════════════════════════════════════
+   10) MODE DÉMO (faux chat pour tester le rendu)
+   ════════════════════════════════════════════════════════════ */
+function runDemo(){
+  const users = ["LunaNoctis","Kael_77","Ombrelune","Sir_Gearheart","Mirabelle","Cristal_Bleu","Vexx","Nyx"];
+  const texts = ["Salut tout le monde !","Quelle ambiance ce soir","Ce design est incroyable","GG, bien joué !","On lance la partie ?","Le monocle est trop classe","Première fois ici, déjà fan","Ça rend super bien","Bonne soirée la team !","Le chat est en feu"];
+  const r = a => a[Math.floor(Math.random()*a.length)];
+  (function next(){
+    addMessage({user:r(users), html:esc(r(texts)), color:["#8a2be2","#ff4500","#1e90ff","#2e8b57","#daa520"][Math.floor(Math.random()*5)]});
+    setTimeout(next, 1400 + Math.random()*2600);
+  })();
+  setTimeout(() => Overlay.addFollower("NouveauFollower"), 8000);
+  setTimeout(() => Overlay.setSub("SuperSubber"), 14000);
+}
+
+/* ════════════════════════════════════════════════════════════
+   11) ANIMATION D'ENTRÉE / SORTIE (GSAP)
+   ════════════════════════════════════════════════════════════ */
+const intro = gsap.timeline({defaults:{ease:"power3.out"}, onComplete(){
+  if (!started){
+    started = true;
+    showSocial(); setInterval(showSocial, CONFIG.socialInterval * 1000);
+    if (CONFIG.channel) connectChat();
+    if (DEMO) runDemo();
+  }
+}});
+let started = false;
+
+intro
+  .from("#cam", {opacity:0, x:-220, duration:1.2}, 0)
+  .from("#cam .gearWrap", {scale:0, rotation:-90, duration:.9, stagger:.1, ease:"back.out(1.8)"}, .6)
+  .from("#chat", {opacity:0, x:280, duration:1.2}, .2)
+  .from("#bar", {opacity:0, y:140, duration:1.1}, .4)
+  .from(".cell", {opacity:0, y:14, duration:.7, stagger:.12}, 1.0)
+  .add(() => { if (!goalAnim.v) { CONFIG.goalCurrent = state.current; gsap.to(goalAnim, {v:state.current, duration:1.6, ease:"power2.out", onUpdate:renderGoal}); } }, 1.2);
+renderGoal();
+
+/* ════════════════════════════════════════════════════════════
+   12) LIAISON AVEC LA SCÈNE "ALERTES"
+   Met à jour dernier follower / dernier sub / objectif quand une alerte est jouée.
+   Fonctionne si les deux pages partagent le même navigateur OBS (essai automatique
+   via BroadcastChannel puis localStorage).
+   ════════════════════════════════════════════════════════════ */
+(function bridge(){
+  function onBus(m){
+    if (!m) return;
+    if (m.type === "follow" && m.name) Overlay.addFollower(m.name);
+    if (m.type === "sub" && m.name)    Overlay.setSub(m.name);
+  }
+  try {
+    if ("BroadcastChannel" in window) new BroadcastChannel("vtuber-overlay").onmessage = e => onBus(e.data);
+  } catch(e){}
+  addEventListener("storage", e => {
+    if (e.key === "vtuber_overlay_event" && e.newValue){
+      try { onBus(JSON.parse(e.newValue)); } catch(_){}
+    }
+  });
+})();
+</script>
+</body>
+</html>

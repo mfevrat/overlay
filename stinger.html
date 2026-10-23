@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Stinger – Transition VTuber</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   1) VARIABLES
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --violet-deep:#4B0082; --violet:#6A0DAD; --magenta:#B5179E;
+  --charcoal:#0D0D12; --night:#0a0614;
+  --gold:#C9A24B; --gold-light:#F3DC9A;
+  --crystal:#3FA9FF; --crystal-light:#6FE7FF;
+  --silver:#D9D9E3;
+  --font-title:'Cinzel','Times New Roman',serif;
+  --font-ui:'Rajdhani','Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:transparent}
+
+/* Fond TRANSPARENT : rien n'est dessiné tant que le stinger ne joue pas */
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;overflow:hidden;background:transparent}
+#stage.preview{
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 40px,transparent 40px 80px),linear-gradient(135deg,#2d3a55,#161b2b);
+}
+#stinger{position:absolute;inset:0;visibility:hidden}
+
+/* ═══════ RIDEAUX DE BRUME ═══════ */
+.panel{position:absolute;top:0;width:1440px;height:1080px;will-change:transform}
+.panel.L{left:0;background:linear-gradient(90deg,#07040f 0%,#12062a 50%,#1a0a3a 72%,rgba(26,10,58,.8) 86%,rgba(26,10,58,0) 100%)}
+.panel.R{left:480px;background:linear-gradient(270deg,#07040f 0%,#12062a 50%,#1a0a3a 72%,rgba(26,10,58,.8) 86%,rgba(26,10,58,0) 100%)}
+.fog{
+  position:absolute;inset:-100px;
+  background:
+    radial-gradient(closest-side at 70% 30%, rgba(181,23,158,.40), transparent 70%),
+    radial-gradient(closest-side at 85% 65%, rgba(106,13,173,.60), transparent 70%),
+    radial-gradient(closest-side at 40% 82%, rgba(63,169,255,.18), transparent 70%),
+    radial-gradient(closest-side at 30% 20%, rgba(106,13,173,.50), transparent 70%);
+  animation:fogMove 5s ease-in-out infinite alternate;
+}
+.panel.R .fog{transform:scaleX(-1)}
+@keyframes fogMove{from{background-position:0 0}to{background-position:120px -60px}}
+/* Bords bouillonnants */
+.blob{
+  position:absolute;width:520px;height:520px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(26,10,58,.96),rgba(26,10,58,.6) 55%,transparent);
+  animation:sway 3.6s ease-in-out infinite alternate;
+}
+.panel.L .blob{right:-270px}
+.panel.R .blob{left:-270px}
+@keyframes sway{from{transform:translateX(-26px) scale(.94)}to{transform:translateX(26px) scale(1.06)}}
+
+/* ═══════ ÉCLIPSE CENTRALE ═══════ */
+#emblem{position:absolute;left:660px;top:250px;width:600px;height:600px;opacity:0;pointer-events:none}
+#emblem svg{width:100%;height:100%;overflow:visible}
+.coronaPulse{transform-origin:220px 220px;animation:pulse 3.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(.95);opacity:.85}50%{transform:scale(1.07);opacity:1}}
+.ringA{transform-origin:220px 220px;animation:spin 18s linear infinite}
+.ringB{transform-origin:220px 220px;animation:spin 12s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sRay{animation:rayPulse 2.4s ease-in-out infinite}
+@keyframes rayPulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+#nameT{
+  position:absolute;left:0;width:1920px;top:850px;text-align:center;opacity:0;
+  font-family:var(--font-title);font-weight:800;font-size:54px;letter-spacing:.2em;
+  background:linear-gradient(100deg,#8a6a22,var(--gold) 30%,var(--gold-light) 50%,var(--gold) 70%,#8a6a22);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(181,23,158,.7));
+}
+
+/* ═══════ PLUMES ═══════ */
+.feather{position:absolute;left:0;top:0;width:90px;height:190px;opacity:0;pointer-events:none;will-change:transform}
+
+/* Éclats */
+#sparks{position:absolute;left:960px;top:540px;width:0;height:0;pointer-events:none}
+#sparks .spark{position:absolute;left:-5px;top:-5px;width:10px;height:10px}
+#sparks .shard{
+  position:absolute;left:-9px;top:-70px;width:18px;height:70px;transform-origin:50% 100%;
+  clip-path:polygon(50% 0,100% 100%,0 100%);
+  background:linear-gradient(to top,transparent,var(--crystal) 45%,#fff);
+}
+
+#flash{
+  position:absolute;inset:0;opacity:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, #fff 0%, #c58bff 28%, rgba(106,13,173,.4) 55%, transparent 75%);
+}
+
+/* ═══════ PANNEAU DE TEST (?test) ═══════ */
+#testPanel{
+  position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:30;display:none;
+  flex-direction:column;align-items:center;gap:12px;font-family:var(--font-ui);
+}
+#testBtns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:1200px}
+#testBtns button{
+  font:600 20px var(--font-ui);letter-spacing:.06em;color:var(--gold-light);cursor:pointer;
+  background:#1a0f30;border:2px solid var(--gold);padding:8px 18px;
+}
+#testBtns button:hover{background:#2b1650}
+#obsState{font:600 18px var(--font-ui);color:var(--silver);letter-spacing:.06em}
+#tlBar{position:relative;width:900px;height:14px;background:#08060d;border:2px solid var(--gold)}
+#tlFill{height:100%;width:0;background:linear-gradient(90deg,var(--violet-deep),var(--magenta),var(--crystal-light))}
+#tlCut{position:absolute;top:-8px;bottom:-8px;width:3px;background:#ff4d78}
+#tlCutLab{position:absolute;top:-34px;transform:translateX(-50%);white-space:nowrap;font:600 17px var(--font-ui);color:#ff8fa8}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="silverG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8f8fae"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#a9a9c4"/>
+    </linearGradient>
+    <g id="featherG"></g>
+  </defs>
+</svg>
+
+<div id="stage">
+  <div id="stinger">
+
+    <!-- Rideaux de brume (le coin des bords est généré en JS) -->
+    <div class="panel L"><div class="fog"></div></div>
+    <div class="panel R"><div class="fog"></div></div>
+
+    <!-- Éclipse : devient totale au point de coupure -->
+    <div id="emblem">
+      <svg viewBox="0 0 440 440">
+        <defs>
+          <radialGradient id="sCorona" cx="50%" cy="50%" r="50%">
+            <stop offset="0.45" stop-color="#F3DC9A" stop-opacity=".9"/>
+            <stop offset="0.55" stop-color="#B5179E" stop-opacity=".55"/>
+            <stop offset="0.75" stop-color="#6A0DAD" stop-opacity=".22"/>
+            <stop offset="1" stop-color="#4B0082" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="sSun" cx="40%" cy="60%" r="70%">
+            <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#C9A24B"/><stop offset="1" stop-color="#B5179E"/>
+          </radialGradient>
+          <filter id="sBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+        </defs>
+        <circle class="coronaPulse" cx="220" cy="220" r="215" fill="url(#sCorona)"/>
+        <g class="ringB"><circle cx="220" cy="220" r="196" fill="none" stroke="#6FE7FF" stroke-opacity=".55" stroke-width="2" stroke-dasharray="34 22 4 22"/></g>
+        <g class="ringA">
+          <circle cx="220" cy="220" r="176" fill="none" stroke="#C9A24B" stroke-width="7" stroke-dasharray="2 15"/>
+          <circle cx="220" cy="220" r="166" fill="none" stroke="#C9A24B" stroke-opacity=".6" stroke-width="1.2"/>
+        </g>
+        <g id="sRays" opacity="0"></g>
+        <circle cx="220" cy="220" r="108" fill="#B5179E" opacity=".65" filter="url(#sBlur)"/>
+        <circle cx="220" cy="220" r="104" fill="url(#sSun)"/>
+        <circle id="sShade" cx="220" cy="220" r="102.6" fill="#07060c" stroke="#1a1a22" stroke-width="1.5"/>
+        <circle id="sBurst" cx="220" cy="220" r="104" fill="none" stroke="#F3DC9A" stroke-width="4" opacity="0"/>
+      </svg>
+    </div>
+
+    <div id="nameT"></div>
+    <div id="feathers"></div>
+    <div id="sparks"></div>
+    <div id="flash"></div>
+  </div>
+
+  <div id="testPanel">
+    <div id="obsState"></div>
+    <div id="tlBar"><div id="tlFill"></div><div id="tlCut"><span id="tlCutLab"></span></div></div>
+    <div id="testBtns"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   2) CONFIGURATION
+   ════════════════════════════════════════════════════════════
+   COMMENT LE FAIRE JOUER À CHAQUE CHANGEMENT DE SCÈNE
+   1. OBS > Outils > Paramètres du serveur WebSocket : coche « Activer le serveur WebSocket ».
+   2. Source Navigateur (1920x1080) avec ce fichier et l'URL suivante :
+        .../stinger.html?obs                  (sans mot de passe)
+        .../stinger.html?obs=MOTDEPASSE       (avec mot de passe)
+        options : &port=4455  &host=127.0.0.1
+   3. Place cette source tout en haut de CHAQUE scène (ou dans un groupe partagé).
+      Dans ses propriétés : décoche « Éteindre la source quand elle n'est pas visible »
+      et « Actualiser le navigateur quand la scène devient active ».
+   4. Transition de scène OBS : « Fondu » de 500 ms. Le rideau se ferme pendant le fondu
+      et la nouvelle scène est révélée à la fin du stinger.
+
+   MODE « COUPURE EXACTE » (transition OBS = Coupure) :
+      Stinger.go("Nom de la scène") joue le stinger et change de scène pile au point
+      de coupure. Avec ?test, des boutons listent tes scènes (clic droit sur la source > Interagir).
+
+   AUTRES PARAMÈTRES : ?test (boutons + frise) ?loop (rejoue en boucle) ?preview (faux fond) ?name=Pseudo
+*/
+const CONFIG = {
+  text: "TonPseudo",     // texte sous l'éclipse (vide = aucun)
+  CUT: 1.0,              // POINT DE COUPURE (secondes) : l'écran est entièrement couvert
+  TOTAL: 3.0             // durée totale du stinger (secondes)
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get("name")) CONFIG.text = params.get("name");
+document.getElementById("nameT").textContent = CONFIG.text;
+
+/* ════════════════════════════════════════════════════════════
+   3) MISE À L'ÉCHELLE
+   ════════════════════════════════════════════════════════════ */
+const stage = document.getElementById("stage");
+if (params.has("preview")) stage.classList.add("preview");
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+/* ════════════════════════════════════════════════════════════
+   4) DÉCOR GÉNÉRÉ : bords de brume, rayons, plume
+   ════════════════════════════════════════════════════════════ */
+const rand = (a, b) => a + Math.random() * (b - a);
+
+/* Bords bouillonnants des rideaux */
+document.querySelectorAll(".panel").forEach(p => {
+  for (let i = 0; i < 9; i++){
+    const b = document.createElement("div");
+    b.className = "blob";
+    b.style.top = (i * 120 - 220 + rand(-30, 30)) + "px";
+    const sz = rand(420, 640); b.style.width = b.style.height = sz + "px";
+    b.style.animationDelay = (-rand(0, 3.6)).toFixed(2) + "s";
+    b.style.animationDuration = rand(2.8, 4.4).toFixed(2) + "s";
+    p.appendChild(b);
+  }
+});
+
+/* Rayons de la couronne */
+(function rays(){
+  const g = document.getElementById("sRays"), n = 72, cols = ["#F3DC9A","#F3DC9A","#D77CE8","#6FE7FF"];
+  for (let i = 0; i < n; i++){
+    const long = i % 6 === 0, len = long ? 58 + Math.random()*34 : 14 + Math.random()*30;
+    g.insertAdjacentHTML("beforeend",
+      `<line class="sRay" style="animation-delay:${(Math.random()*2.4).toFixed(2)}s" transform="rotate(${((i/n)*360).toFixed(1)} 220 220)"
+        x1="220" y1="112" x2="220" y2="${(112-len).toFixed(1)}" stroke="${cols[i%4]}" stroke-width="${long ? 3 : 1.6}" stroke-linecap="round"/>`);
+  }
+})();
+
+/* Plume argentée (pointe vers le haut, base en 0,0) */
+(function featherShape(){
+  let barbs = "";
+  for (let i = 1; i <= 12; i++){
+    const y = -i * 13.5, w = 32 * Math.sin(Math.PI * i / 13.2);
+    barbs += `<line x1="0" y1="${y}" x2="${-w}" y2="${y - 15}"/><line x1="0" y1="${y}" x2="${w}" y2="${y - 15}"/>`;
+  }
+  document.getElementById("featherG").innerHTML =
+    `<path d="M0,0 C-36,-36 -40,-120 0,-178 C40,-120 36,-36 0,0Z" fill="url(#silverG)" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+     <g stroke="rgba(110,110,150,.55)" stroke-width="1">${barbs}</g>
+     <line x1="0" y1="8" x2="0" y2="-172" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>`;
+})();
+
+/* ════════════════════════════════════════════════════════════
+   5) ÉCLATS DE CRISTAL (au point de coupure)
+   ════════════════════════════════════════════════════════════ */
+function burst(){
+  const box = document.getElementById("sparks");
+  for (let i = 0; i < 14; i++){
+    const ang = i * (360/14) + rand(-8, 8), dist = rand(320, 620), rad = (ang - 90) * Math.PI / 180;
+    const s = document.createElement("i"); s.className = "shard"; box.appendChild(s);
+    gsap.fromTo(s, {x:0, y:0, rotation:ang, opacity:1, scaleY:.4},
+      {x:Math.cos(rad)*dist, y:Math.sin(rad)*dist, scaleY:1.3, opacity:0, duration:rand(.9, 1.4), ease:"power3.out", onComplete(){ s.remove(); }});
+  }
+  const colors = ["#F3DC9A", "#B5179E", "#6FE7FF", "#ffffff"];
+  for (let i = 0; i < 40; i++){
+    const a = rand(0, Math.PI*2), dist = rand(200, 760);
+    const p = document.createElement("i"); p.className = "spark"; p.style.background = colors[i % 4]; box.appendChild(p);
+    gsap.fromTo(p, {x:0, y:0, rotation:45, scale:1, opacity:1},
+      {x:Math.cos(a)*dist, y:Math.sin(a)*dist*.75, rotation:rand(45, 360), scale:0, opacity:0, duration:rand(1, 1.8), ease:"power2.out", onComplete(){ p.remove(); }});
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   6) LA TIMELINE DU STINGER (3 s)
+        0,00 s   les rideaux de brume et les plumes entrent
+        1,00 s   ★ POINT DE COUPURE : écran entièrement couvert, éclipse totale
+        1,50 s   la couronne retombe, tout s'ouvre
+        3,00 s   fin (la source redevient transparente)
+   ════════════════════════════════════════════════════════════ */
+const CUT = CONFIG.CUT, END = CONFIG.TOTAL;
+let pendingCut = null, busy = false;
+
+const tl = gsap.timeline({paused:true, defaults:{ease:"power3.out"}, onComplete(){
+  busy = false; pendingCut = null;
+  if (params.has("loop")) setTimeout(play, 900);
+}});
+
+/* Plumes */
+const featherLayer = document.getElementById("feathers");
+for (let i = 0; i < 24; i++){
+  const fromLeft = i % 2 === 0;
+  const el = document.createElement("div"); el.className = "feather";
+  el.innerHTML = `<svg width="90" height="190" viewBox="-45 -185 90 195"><use href="#featherG"/></svg>`;
+  featherLayer.appendChild(el);
+  const s = rand(.55, 1.55), y0 = rand(60, 1010), yMid = y0 + rand(-140, 140), yEnd = yMid + rand(-220, 220);
+  const rot0 = (fromLeft ? 80 : -80) + rand(-40, 40);
+  const t0 = rand(0, .35), inDur = rand(.7, 1.05), outAt = CUT + .5 + rand(0, .3);
+  const outDur = Math.min(rand(1.0, 1.35), END - outAt - .02);   // ne dépasse jamais la durée totale
+  tl.fromTo(el,
+      {x:fromLeft ? -280 : 2200, y:y0, rotation:rot0, scale:s, opacity:0},
+      {x:rand(520, 1340), y:yMid, rotation:rot0 + rand(-40, 40), opacity:1, duration:inDur, ease:"power2.out"}, t0)
+    .to(el, {x:fromLeft ? 2220 : -300, y:yEnd, rotation:rot0 + rand(-110, 110), opacity:0, duration:outDur, ease:"power1.in"}, outAt);
+}
+
+tl.set("#stinger", {visibility:"visible"}, 0)
+
+  /* Fermeture : rideaux de brume */
+  .fromTo(".panel.L", {xPercent:-118}, {xPercent:0, duration:CUT - .05, ease:"power3.inOut"}, 0)
+  .fromTo(".panel.R", {xPercent:118},  {xPercent:0, duration:CUT - .05, ease:"power3.inOut"}, 0)
+
+  /* L'éclipse devient totale pile au point de coupure */
+  .fromTo("#emblem", {opacity:0, scale:.35}, {opacity:1, scale:1, duration:.7, ease:"back.out(1.4)"}, CUT - .6)
+  .fromTo("#sShade", {x:84, y:-32}, {x:0, y:0, duration:.6, ease:"power2.inOut"}, CUT - .6)
+
+  /* ★ POINT DE COUPURE */
+  .add(() => { if (pendingCut) { pendingCut(); pendingCut = null; } }, CUT)
+  .add(burst, CUT)
+  .to("#flash", {opacity:.6, duration:.1}, CUT)
+  .to("#flash", {opacity:0, duration:.7, ease:"power2.out"}, CUT + .1)
+  .fromTo("#sBurst", {opacity:.95, scale:1, svgOrigin:"220 220"}, {opacity:0, scale:2.4, svgOrigin:"220 220", duration:1.3, ease:"power2.out"}, CUT)
+  .fromTo("#sRays", {opacity:0, scale:.7, svgOrigin:"220 220"}, {opacity:1, scale:1, svgOrigin:"220 220", duration:.7}, CUT)
+  .fromTo("#nameT", {opacity:0, y:14}, {opacity:1, y:0, duration:.5}, CUT + .05)
+
+  /* Ouverture */
+  .to("#nameT", {opacity:0, duration:.3, ease:"power2.in"}, CUT + .5)
+  .to("#sRays", {opacity:0, duration:.5}, CUT + .5)
+  .to("#sShade", {x:84, y:-32, duration:.8, ease:"power2.inOut"}, CUT + .45)
+  .to(".panel.L", {xPercent:-118, duration:1.15, ease:"power3.inOut"}, CUT + .5)
+  .to(".panel.R", {xPercent:118,  duration:1.15, ease:"power3.inOut"}, CUT + .5)
+  .to("#emblem", {opacity:0, scale:1.35, duration:.9, ease:"power2.in"}, CUT + .75)
+  .set("#stinger", {visibility:"hidden"}, END);
+
+function play(){
+  if (busy) return;
+  busy = true;
+  tl.restart();
+}
+window.Stinger = {
+  play,
+  /* Joue le stinger et change de scène exactement au point de coupure */
+  go(sceneName){
+    if (busy) return;
+    pendingCut = () => obsRequest("SetCurrentProgramScene", {sceneName});
+    play();
+  },
+  cutTime: CUT, totalTime: END
+};
+
+/* ════════════════════════════════════════════════════════════
+   7) CONNEXION À OBS (WebSocket intégré à OBS 28+)
+   ════════════════════════════════════════════════════════════ */
+let obsWS = null, obsReady = false, reqId = 0;
+const waiting = {};
+const obsState = document.getElementById("obsState");
+
+function b64(buf){ let s = ""; new Uint8Array(buf).forEach(b => s += String.fromCharCode(b)); return btoa(s); }
+async function sha256b64(str){ return b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str))); }
+
+function obsRequest(type, data){
+  return new Promise(resolve => {
+    if (!obsReady) return resolve(null);
+    const id = "r" + (++reqId);
+    waiting[id] = resolve;
+    obsWS.send(JSON.stringify({op:6, d:{requestType:type, requestId:id, requestData:data || {}}}));
+  });
+}
+
+function connectOBS(){
+  const host = params.get("host") || "127.0.0.1", port = params.get("port") || "4455", password = params.get("obs") || "";
+  obsState.textContent = "OBS : connexion…";
+  obsWS = new WebSocket(`ws://${host}:${port}`);
+  obsWS.onmessage = async ev => {
+    const m = JSON.parse(ev.data), d = m.d || {};
+    if (m.op === 0){                                   // Hello
+      const ident = {rpcVersion:1};
+      if (d.authentication){
+        if (!password){ obsState.textContent = "OBS : mot de passe requis (?obs=MOTDEPASSE)"; return; }
+        const secret = await sha256b64(password + d.authentication.salt);
+        ident.authentication = await sha256b64(secret + d.authentication.challenge);
+      }
+      obsWS.send(JSON.stringify({op:1, d:ident}));
+    } else if (m.op === 2){                            // Identified
+      obsReady = true; obsState.textContent = "OBS : connecté";
+      refreshScenes();
+    } else if (m.op === 5){                            // Event
+      if (d.eventType === "SceneTransitionStarted" && !params.has("manual")) play();
+    } else if (m.op === 7){                            // RequestResponse
+      const cb = waiting[d.requestId]; if (cb){ delete waiting[d.requestId]; cb(d); }
+    }
+  };
+  obsWS.onclose = () => { obsReady = false; obsState.textContent = "OBS : déconnecté (nouvel essai…)"; setTimeout(connectOBS, 5000); };
+  obsWS.onerror = () => obsWS.close();
+}
+if (params.has("obs")) connectOBS();
+
+/* ════════════════════════════════════════════════════════════
+   8) PANNEAU DE TEST (?test)
+   ════════════════════════════════════════════════════════════ */
+async function refreshScenes(){
+  if (!params.has("test")) return;
+  const r = await obsRequest("GetSceneList");
+  const box = document.getElementById("testBtns");
+  box.querySelectorAll(".sc").forEach(b => b.remove());
+  ((r && r.responseData && r.responseData.scenes) || []).slice().reverse().forEach(s => {
+    const b = document.createElement("button"); b.className = "sc"; b.textContent = "→ " + s.sceneName;
+    b.onclick = () => Stinger.go(s.sceneName); box.appendChild(b);
+  });
+}
+if (params.has("test")){
+  document.getElementById("testPanel").style.display = "flex";
+  const play1 = document.createElement("button"); play1.textContent = "▶ Jouer le stinger (Espace)"; play1.onclick = play;
+  document.getElementById("testBtns").appendChild(play1);
+  addEventListener("keydown", e => { if (e.code === "Space"){ e.preventDefault(); play(); } });
+  const cutPct = CUT / END * 100;
+  document.getElementById("tlCut").style.left = cutPct + "%";
+  document.getElementById("tlCutLab").textContent = `Point de coupure : ${CUT.toFixed(1).replace(".", ",")} s`;
+  gsap.ticker.add(() => { document.getElementById("tlFill").style.width = (tl.progress() * 100) + "%"; });
+  if (!params.has("obs")) document.getElementById("obsState").textContent = "Aperçu seul (ajoute ?obs pour connecter OBS)";
+}
+if (params.has("loop")) setTimeout(play, 600);
+</script>
+</body>
+</html>

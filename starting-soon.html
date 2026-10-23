@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Starting Soon – Overlay VTuber</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Polices (Google Fonts) : nécessitent une connexion internet, sinon des polices de secours sont utilisées -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Cormorant+Garamond:ital,wght@1,500&family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   1) VARIABLES — change tes couleurs ici
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --violet-deep:#4B0082;
+  --violet:#6A0DAD;
+  --magenta:#B5179E;
+  --charcoal:#0D0D12;
+  --charcoal-2:#1A1A22;
+  --gold:#C9A24B;
+  --gold-light:#F3DC9A;
+  --crystal:#3FA9FF;
+  --crystal-light:#6FE7FF;
+  --crimson:#D6204E;
+  --silver:#D9D9E3;
+
+  --font-title:'Cinzel','Times New Roman',serif;
+  --font-slogan:'Cormorant Garamond',Georgia,serif;
+  --font-digits:'Orbitron','Arial Black',sans-serif;
+  --font-ui:'Rajdhani','Segoe UI',sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+
+/* Scène fixe 1920x1080, mise à l'échelle automatiquement */
+#stage{
+  position:absolute;left:50%;top:50%;
+  width:1920px;height:1080px;
+  transform-origin:center center;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 38%, #2b0a4a 0%, #150a26 45%, var(--charcoal) 100%);
+  overflow:hidden;
+}
+
+/* Grain statique très léger (SVG intégré, aucun fichier externe) */
+#grain{
+  position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;pointer-events:none;z-index:50;
+  background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+}
+#vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:40;
+  background:radial-gradient(ellipse 75% 75% at 50% 50%, transparent 55%, rgba(5,3,10,.85) 100%);
+}
+
+/* ── Brume violette ── */
+.mist{
+  position:absolute;width:1300px;height:900px;border-radius:50%;
+  pointer-events:none;will-change:transform;z-index:1;
+}
+.mist.m1{left:-300px;top:380px;background:radial-gradient(closest-side, rgba(106,13,173,.38), transparent);animation:drift1 38s ease-in-out infinite alternate}
+.mist.m2{right:-350px;top:120px;background:radial-gradient(closest-side, rgba(181,23,158,.26), transparent);animation:drift2 46s ease-in-out infinite alternate}
+.mist.m3{left:300px;bottom:-420px;width:1500px;background:radial-gradient(closest-side, rgba(63,169,255,.14), transparent);animation:drift3 52s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate(260px,-90px) scale(1.15)}}
+@keyframes drift2{to{transform:translate(-300px,140px) scale(.9)}}
+@keyframes drift3{to{transform:translate(-220px,-70px) scale(1.2)}}
+
+canvas#particles{position:absolute;inset:0;z-index:3;pointer-events:none}
+
+/* ── Rouages ── */
+#gears{position:absolute;inset:0;z-index:2}
+.gearWrap{position:absolute}
+.gearWrap svg{display:block;animation:spin var(--dur,60s) linear infinite;will-change:transform}
+.gearWrap.rev svg{animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Contenu principal ── */
+#main{position:absolute;inset:0;z-index:10;transition:none}
+#main.withVtuber{transform:translateX(-300px)}
+
+/* Éclipse (élément signature) */
+#eclipse{
+  position:absolute;left:740px;top:70px;width:440px;height:440px;
+}
+#eclipse svg{width:100%;height:100%;overflow:visible}
+.coronaPulse{transform-origin:220px 220px;animation:pulse 7s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(.94);opacity:.85}50%{transform:scale(1.06);opacity:1}}
+.ringA{transform-origin:220px 220px;animation:spin 90s linear infinite}
+.ringB{transform-origin:220px 220px;animation:spin 60s linear infinite reverse}
+.moonShade{animation:eclipseMove 16s ease-in-out infinite alternate}
+@keyframes eclipseMove{
+  0%{transform:translate(36px,-14px)}
+  100%{transform:translate(8px,-3px)}
+}
+.shard{transform-origin:220px 220px;animation:shardPulse 4.5s ease-in-out infinite}
+@keyframes shardPulse{0%,100%{opacity:.35}50%{opacity:1}}
+.ray{animation:rayPulse 5s ease-in-out infinite}
+@keyframes rayPulse{0%,100%{opacity:.25}50%{opacity:.95}}
+
+/* Titre */
+#titleWrap{
+  position:absolute;left:0;width:1920px;top:520px;text-align:center;
+  letter-spacing:.12em;
+}
+#titleWrap h1{
+  font-family:var(--font-title);font-weight:800;font-size:106px;line-height:1.15;
+  white-space:nowrap;
+}
+#titleWrap h1.main{
+  position:relative;
+  background:linear-gradient(100deg,#8a6a22 0%,var(--gold) 25%,var(--gold-light) 45%,var(--gold) 60%,#8a6a22 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(181,23,158,.55)) drop-shadow(0 4px 0 rgba(0,0,0,.6));
+  animation:shine 7s linear infinite;
+}
+@keyframes shine{from{background-position:120% 0}to{background-position:-100% 0}}
+#titleWrap h1.ghost{
+  position:absolute;left:0;right:0;top:0;opacity:0;mix-blend-mode:screen;pointer-events:none;
+}
+#titleWrap h1.ghost.c{color:var(--crystal-light);-webkit-text-fill-color:var(--crystal-light)}
+#titleWrap h1.ghost.r{color:var(--crimson);-webkit-text-fill-color:var(--crimson)}
+
+#slogan{
+  position:absolute;left:0;width:1920px;top:668px;text-align:center;
+  font-family:var(--font-slogan);font-style:italic;font-weight:500;font-size:42px;
+  letter-spacing:.06em;color:var(--silver);
+  text-shadow:0 0 18px rgba(106,13,173,.9);
+}
+
+/* Compte à rebours */
+#timer{
+  position:absolute;left:0;width:1920px;top:732px;text-align:center;
+  font-family:var(--font-digits);font-weight:800;font-size:94px;letter-spacing:.08em;
+  line-height:1.2;
+  background:linear-gradient(180deg,var(--gold-light),var(--gold) 55%,#8a6a22);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(63,169,255,.45));
+}
+#timer i{font-style:normal;animation:blink 1s steps(1) infinite}
+@keyframes blink{0%{opacity:1}50%{opacity:.2}}
+
+/* Barre de progression */
+#barWrap{position:absolute;left:560px;top:880px;width:800px;height:26px}
+.barFrame{
+  position:absolute;inset:0;border:2px solid var(--gold);background:#08060d;padding:3px;
+  box-shadow:0 0 22px rgba(106,13,173,.7), inset 0 0 12px rgba(0,0,0,.9);
+}
+.barFill{
+  position:relative;height:100%;width:0%;overflow:hidden;
+  background:linear-gradient(90deg,var(--violet-deep),var(--magenta) 65%,var(--crystal-light));
+}
+.barFill::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);
+  background-size:250% 100%;animation:sweep 3.2s linear infinite;
+}
+@keyframes sweep{from{background-position:150% 0}to{background-position:-100% 0}}
+#barWrap::before,#barWrap::after{
+  content:"";position:absolute;top:50%;width:24px;height:24px;margin-top:-12px;
+  background:var(--charcoal);border:2px solid var(--gold);transform:rotate(45deg);z-index:2;
+}
+#barWrap::before{left:-14px}
+#barWrap::after{right:-14px}
+
+/* Réseaux */
+#socials{
+  position:absolute;left:0;width:1920px;top:955px;height:50px;text-align:center;
+  font-family:var(--font-ui);font-weight:600;font-size:32px;letter-spacing:.08em;
+}
+#socials span{display:inline-block}
+#socials .lab{color:var(--gold);margin-right:18px}
+#socials .val{color:var(--silver)}
+
+/* Cadre ornemental */
+#frame{position:absolute;inset:0;z-index:20;pointer-events:none}
+#frame path.draw{stroke-dasharray:1;stroke-dashoffset:0}
+
+/* VTuber (optionnel) */
+#vtWrap{
+  position:absolute;right:50px;bottom:0;height:960px;z-index:15;display:none;
+  transform-origin:50% 100%;animation:breathe 5s ease-in-out infinite;
+}
+#vtWrap img{height:100%;display:block;filter:drop-shadow(0 0 30px rgba(106,13,173,.7))}
+@keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.012)}}
+
+#flash{
+  position:absolute;inset:0;z-index:60;opacity:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 35%, #fff 0%, #c58bff 30%, transparent 70%);
+}
+</style>
+</head>
+<body>
+
+<!-- Dégradé or partagé (utilisé par les rouages) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3DC9A"/>
+      <stop offset=".5" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#7a5a1c"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div id="stage">
+  <div class="mist m1"></div>
+  <div class="mist m2"></div>
+  <div class="mist m3"></div>
+
+  <div id="gears"></div>
+  <canvas id="particles" width="1920" height="1080"></canvas>
+
+  <div id="main">
+
+    <!-- ÉCLIPSE : logo animé central.
+         Pour mettre ton propre logo PNG : ajoute <image href="logo.png" x="120" y="120" width="200" height="200"/> à la fin du <svg> -->
+    <div id="eclipse">
+      <svg viewBox="0 0 440 440">
+        <defs>
+          <radialGradient id="corona" cx="50%" cy="50%" r="50%">
+            <stop offset="0.45" stop-color="#B5179E" stop-opacity=".75"/>
+            <stop offset="0.7" stop-color="#6A0DAD" stop-opacity=".3"/>
+            <stop offset="1" stop-color="#4B0082" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="sun" cx="40%" cy="60%" r="70%">
+            <stop offset="0" stop-color="#fff3c4"/>
+            <stop offset=".45" stop-color="#C9A24B"/>
+            <stop offset="1" stop-color="#B5179E"/>
+          </radialGradient>
+          <filter id="blur10" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+          <linearGradient id="crystalG" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#3FA9FF" stop-opacity=".1"/>
+            <stop offset="1" stop-color="#6FE7FF"/>
+          </linearGradient>
+        </defs>
+
+        <circle class="coronaPulse" cx="220" cy="220" r="215" fill="url(#corona)"/>
+
+        <g class="ringB">
+          <circle cx="220" cy="220" r="196" fill="none" stroke="#6FE7FF" stroke-opacity=".55" stroke-width="2" stroke-dasharray="34 22 4 22"/>
+        </g>
+        <g class="ringA">
+          <circle cx="220" cy="220" r="176" fill="none" stroke="#C9A24B" stroke-width="7" stroke-dasharray="2 15"/>
+          <circle cx="220" cy="220" r="166" fill="none" stroke="#C9A24B" stroke-opacity=".6" stroke-width="1.2"/>
+        </g>
+
+        <g id="shards"></g>
+        <g id="rays"></g>
+
+        <circle cx="220" cy="220" r="108" fill="#B5179E" opacity=".7" filter="url(#blur10)"/>
+        <circle cx="220" cy="220" r="104" fill="url(#sun)"/>
+        <!-- Disque sombre qui glisse lentement : l'éclipse vivante -->
+        <circle class="moonShade" cx="220" cy="220" r="100" fill="#07060c" stroke="#1a1a22" stroke-width="2"/>
+      </svg>
+    </div>
+
+    <div id="titleWrap">
+      <h1 class="ghost r" aria-hidden="true"></h1>
+      <h1 class="ghost c" aria-hidden="true"></h1>
+      <h1 class="main" id="titleMain"></h1>
+    </div>
+
+    <div id="slogan"></div>
+    <div id="timer"></div>
+
+    <div id="barWrap">
+      <div class="barFrame"><div class="barFill" id="barFill"></div></div>
+    </div>
+
+    <div id="socials"></div>
+  </div>
+
+  <!-- VTuber : PNG transparent (voir CONFIG.vtuberImage) -->
+  <div id="vtWrap"><img id="vtuber" alt=""></div>
+
+  <!-- Cadre ornemental -->
+  <svg id="frame" viewBox="0 0 1920 1080">
+    <rect x="30" y="30" width="1860" height="1020" fill="none" stroke="#C9A24B" stroke-opacity=".28" stroke-width="1.5"/>
+    <g fill="none" stroke="#C9A24B" stroke-width="4" stroke-linecap="square">
+      <path class="draw" pathLength="1" d="M30 130 V30 H130"/>
+      <path class="draw" pathLength="1" d="M1790 30 H1890 V130"/>
+      <path class="draw" pathLength="1" d="M30 950 V1050 H130"/>
+      <path class="draw" pathLength="1" d="M1890 950 V1050 H1790"/>
+    </g>
+    <g fill="#C9A24B">
+      <rect x="22" y="22" width="16" height="16" transform="rotate(45 30 30)"/>
+      <rect x="1882" y="22" width="16" height="16" transform="rotate(45 1890 30)"/>
+      <rect x="22" y="1042" width="16" height="16" transform="rotate(45 30 1050)"/>
+      <rect x="1882" y="1042" width="16" height="16" transform="rotate(45 1890 1050)"/>
+    </g>
+  </svg>
+
+  <div id="vignette"></div>
+  <div id="grain"></div>
+  <div id="flash"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   2) CONFIGURATION — modifie tes textes ici
+   ════════════════════════════════════════════════════════════
+   Paramètres d'URL (à ajouter dans OBS, après le nom du fichier) :
+     ?minutes=10       → compte à rebours de 10 minutes
+     ?at=20:30         → compte à rebours jusqu'à 20h30 (heure locale)
+     ?minutes=10&name=MonPseudo
+*/
+const CONFIG = {
+  pseudo:  "TonPseudo",
+  title:   "Starting Soon",
+  slogan:  "Bienvenue dans l’ombre",
+  minutes: 5,                       // durée par défaut
+  endText: "Le rituel commence…",   // texte affiché quand le compteur atteint 0
+  vtuberImage: "",                  // ex : "vtuber.png" (PNG transparent, même dossier que ce fichier)
+  socials: [                        // défilent en boucle
+    { label: "Twitter / X", value: "@TonPseudo" },
+    { label: "Discord",     value: "discord.gg/tonlien" },
+    { label: "YouTube",     value: "youtube.com/@TonPseudo" },
+    { label: "TikTok",      value: "@TonPseudo" }
+  ],
+  socialInterval: 3.6               // secondes entre deux réseaux
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get("name"))    CONFIG.pseudo = params.get("name");
+if (params.get("minutes")) CONFIG.minutes = parseFloat(params.get("minutes"));
+
+/* ════════════════════════════════════════════════════════════
+   3) MISE À L'ÉCHELLE DE LA SCÈNE
+   ════════════════════════════════════════════════════════════ */
+const stage = document.getElementById("stage");
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+/* ════════════════════════════════════════════════════════════
+   4) TEXTES
+   ════════════════════════════════════════════════════════════ */
+document.querySelectorAll("#titleWrap h1").forEach(h => h.textContent = CONFIG.title);
+document.getElementById("slogan").textContent = CONFIG.slogan;
+
+/* ════════════════════════════════════════════════════════════
+   5) ROUAGES (générés en SVG)
+   ════════════════════════════════════════════════════════════ */
+function makeGear(cx, cy, teeth, ro, ri, durSec, reverse, opacity){
+  const size = (ro + 8) * 2, c = size / 2, step = Math.PI * 2 / teeth;
+  const pol = (r, a) => [(c + r*Math.cos(a)).toFixed(1), (c + r*Math.sin(a)).toFixed(1)];
+  const pts = [];
+  for (let i = 0; i < teeth; i++){
+    const a = i * step;
+    pts.push(pol(ri, a - step*.30), pol(ro, a - step*.17), pol(ro, a + step*.17), pol(ri, a + step*.30));
+  }
+  const d = "M" + pts.map(p => p.join(",")).join("L") + "Z";
+  let spokes = "";
+  for (let i = 0; i < 6; i++){
+    const a = i * Math.PI / 3, p1 = pol(ri*.30, a), p2 = pol(ri*.80, a);
+    spokes += `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="#C9A24B" stroke-opacity=".7" stroke-width="${Math.max(3, ri*.05)}"/>`;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "gearWrap" + (reverse ? " rev" : "");
+  wrap.style.cssText = `left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;opacity:${opacity};--dur:${durSec}s`;
+  wrap.dataset.op = opacity;
+  wrap.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <path d="${d}" fill="#0e0d14" stroke="url(#goldG)" stroke-width="3.5" stroke-linejoin="round"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.86}" fill="none" stroke="#C9A24B" stroke-opacity=".55" stroke-width="2"/>
+    ${spokes}
+    <circle cx="${c}" cy="${c}" r="${ri*.30}" fill="#07060c" stroke="url(#goldG)" stroke-width="3"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.10}" fill="#C9A24B"/>
+  </svg>`;
+  document.getElementById("gears").appendChild(wrap);
+}
+/*             x     y    dents ro   ri   durée sens   opacité */
+makeGear(140,  940, 24, 190, 165, 120, false, .85);   // bas gauche (grand)
+makeGear(330,  722, 14, 112,  94,  70, true,  .85);   // engrené avec le précédent
+makeGear(1780, 940, 24, 190, 165, 120, true,  .85);   // bas droite (grand)
+makeGear(1590, 722, 14, 112,  94,  70, false, .85);
+makeGear(40,    60, 18, 120, 102,  90, false, .55);   // haut gauche (en partie hors cadre)
+makeGear(1880,  60, 18, 120, 102,  90, true,  .55);
+
+/* ════════════════════════════════════════════════════════════
+   6) ÉCLIPSE : éclats de cristal + rayons
+   ════════════════════════════════════════════════════════════ */
+(function buildEclipse(){
+  const shards = document.getElementById("shards");
+  const rays   = document.getElementById("rays");
+  const n = 10;
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * 360 + 18;
+    const len = i % 2 ? 46 : 70, base = 128;
+    shards.insertAdjacentHTML("beforeend",
+      `<polygon class="shard" style="animation-delay:${(i*.45).toFixed(2)}s"
+        transform="rotate(${a} 220 220)"
+        points="${220-9},${220-base} ${220+9},${220-base} ${220},${220-base-len}"
+        fill="url(#crystalG)" stroke="#6FE7FF" stroke-opacity=".6" stroke-width="1"/>`);
+  }
+  for (let i = 0; i < 16; i++){
+    const a = (i / 16) * 360;
+    rays.insertAdjacentHTML("beforeend",
+      `<line class="ray" style="animation-delay:${(i*.3).toFixed(2)}s"
+        transform="rotate(${a} 220 220)"
+        x1="220" y1="${220-116}" x2="220" y2="${220-(i%2?124:134)}"
+        stroke="#F3DC9A" stroke-width="2.5" stroke-linecap="round"/>`);
+  }
+})();
+
+/* ════════════════════════════════════════════════════════════
+   7) PARTICULES (canvas, sprites pré-rendus = très léger)
+   ════════════════════════════════════════════════════════════ */
+(function particles(){
+  const cv = document.getElementById("particles"), ctx = cv.getContext("2d");
+  function sprite(rgb){
+    const s = document.createElement("canvas"); s.width = s.height = 48;
+    const g = s.getContext("2d"), grd = g.createRadialGradient(24,24,0,24,24,24);
+    grd.addColorStop(0, `rgba(${rgb},1)`); grd.addColorStop(.25, `rgba(${rgb},.55)`); grd.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = grd; g.fillRect(0,0,48,48); return s;
+  }
+  const sprites = [sprite("181,23,158"), sprite("111,231,255"), sprite("243,220,154"), sprite("150,60,230")];
+  const P = [];
+  const rand = (a,b) => a + Math.random()*(b-a);
+  function spawn(p, initial){
+    p.x = rand(0,1920); p.y = initial ? rand(0,1080) : 1100;
+    p.s = rand(6,22); p.v = rand(18,60); p.sw = rand(10,40); p.ph = rand(0,6.28);
+    p.sp = rand(.4,1.1); p.t = sprites[(Math.random()*sprites.length)|0]; p.a = rand(.35,.95);
+    return p;
+  }
+  for (let i = 0; i < 90; i++) P.push(spawn({}, true));
+  let last = performance.now();
+  (function loop(now){
+    const dt = Math.min(.05, (now - last)/1000); last = now;
+    ctx.clearRect(0,0,1920,1080);
+    for (const p of P){
+      p.y -= p.v*dt; p.ph += p.sp*dt;
+      if (p.y < -40) spawn(p, false);
+      const x = p.x + Math.sin(p.ph)*p.sw;
+      ctx.globalAlpha = p.a * (.6 + .4*Math.sin(p.ph*3));
+      ctx.drawImage(p.t, x - p.s, p.y - p.s, p.s*2, p.s*2);
+    }
+    requestAnimationFrame(loop);
+  })(last);
+})();
+
+/* ════════════════════════════════════════════════════════════
+   8) VTUBER (optionnel)
+   ════════════════════════════════════════════════════════════ */
+if (CONFIG.vtuberImage){
+  document.getElementById("vtuber").src = CONFIG.vtuberImage;
+  document.getElementById("vtWrap").style.display = "block";
+  document.getElementById("main").classList.add("withVtuber");
+}
+
+/* ════════════════════════════════════════════════════════════
+   9) COMPTE À REBOURS
+   ════════════════════════════════════════════════════════════ */
+const timerEl = document.getElementById("timer");
+const barFill = document.getElementById("barFill");
+const startTs = Date.now();
+let targetTs;
+if (params.get("at") && /^\d{1,2}:\d{2}$/.test(params.get("at"))){
+  const [h, m] = params.get("at").split(":").map(Number);
+  const t = new Date(); t.setHours(h, m, 0, 0);
+  if (t.getTime() <= startTs) t.setDate(t.getDate() + 1);
+  targetTs = t.getTime();
+} else {
+  targetTs = startTs + CONFIG.minutes * 60000;
+}
+const totalMs = targetTs - startTs;
+let lastStr = "", finished = false;
+const pad = n => String(n).padStart(2, "0");
+
+function tick(){
+  const remMs = Math.max(0, targetTs - Date.now());
+  const rem = Math.ceil(remMs / 1000);
+  const h = Math.floor(rem / 3600), m = Math.floor((rem % 3600) / 60), s = rem % 60;
+  const str = h > 0 ? `${h}<i>:</i>${pad(m)}<i>:</i>${pad(s)}` : `${pad(m)}<i>:</i>${pad(s)}`;
+  if (str !== lastStr){
+    timerEl.innerHTML = str; lastStr = str;
+    if (introDone && !finished) gsap.fromTo(timerEl, {scale:1.035}, {scale:1, duration:.35, ease:"power2.out"});
+  }
+  gsap.to(barFill, {width: (1 - remMs/totalMs) * 100 + "%", duration:.45, ease:"none", overwrite:true});
+  if (remMs === 0 && !finished) onFinish();
+}
+
+function onFinish(){
+  finished = true;
+  const flash = document.getElementById("flash");
+  gsap.timeline()
+    .to(flash, {opacity:.95, duration:.15})
+    .to(flash, {opacity:0, duration:1.6, ease:"power2.out"})
+    .to("#eclipse", {scale:1.12, duration:.3, ease:"power2.out"}, 0)
+    .to("#eclipse", {scale:1, duration:1.4, ease:"elastic.out(1,.4)"}, .3);
+  gsap.to("#slogan", {opacity:0, y:-10, duration:.4, onComplete(){
+    document.getElementById("slogan").textContent = CONFIG.endText;
+    gsap.to("#slogan", {opacity:1, y:0, duration:.6});
+  }});
+  gsap.to(timerEl, {opacity:.55, duration:1.2, repeat:-1, yoyo:true, ease:"sine.inOut"});
+}
+
+/* ════════════════════════════════════════════════════════════
+   10) RÉSEAUX SOCIAUX (rotation)
+   ════════════════════════════════════════════════════════════ */
+const socEl = document.getElementById("socials");
+const socItems = [{label: "Chaîne", value: CONFIG.pseudo}, ...CONFIG.socials];
+let socIdx = 0;
+function showSocial(){
+  const it = socItems[socIdx % socItems.length]; socIdx++;
+  socEl.innerHTML = `<span class="lab">${it.label}</span><span class="val">${it.value}</span>`;
+  gsap.fromTo(socEl.children, {opacity:0, y:14}, {opacity:1, y:0, duration:.6, stagger:.1, ease:"power2.out"});
+  gsap.to(socEl.children, {opacity:0, y:-10, duration:.5, delay:CONFIG.socialInterval - .5, ease:"power1.in"});
+}
+
+/* ════════════════════════════════════════════════════════════
+   11) GLITCH SUR LE TITRE (aléatoire, discret)
+   ════════════════════════════════════════════════════════════ */
+function glitch(){
+  const r = document.querySelector("#titleWrap .ghost.r"), c = document.querySelector("#titleWrap .ghost.c");
+  gsap.timeline({onComplete(){ gsap.delayedCall(gsap.utils.random(5, 9), glitch); }})
+    .set([r, c], {opacity:.8})
+    .to(r, {x:-8, duration:.05}).to(c, {x:8, duration:.05}, "<")
+    .to(r, {x:4, duration:.04}).to(c, {x:-3, duration:.04}, "<")
+    .to(r, {x:-5, duration:.05}).to(c, {x:5, duration:.05}, "<")
+    .set([r, c], {opacity:0, x:0});
+}
+
+/* ════════════════════════════════════════════════════════════
+   12) SÉQUENCE D'INTRODUCTION (GSAP)
+   ════════════════════════════════════════════════════════════ */
+let introDone = false;
+const tl = gsap.timeline({defaults:{ease:"power3.out"}, onComplete(){
+  introDone = true;
+  showSocial(); setInterval(showSocial, CONFIG.socialInterval * 1000);
+  gsap.delayedCall(3, glitch);
+}});
+tl.from("#frame path.draw", {strokeDashoffset:1, duration:1.6, ease:"power2.inOut", stagger:.1}, 0)
+  .from("#frame rect", {opacity:0, duration:.8}, .8)
+  .from(".gearWrap", {opacity:0, scale:.6, duration:1.4, stagger:.12}, .2)
+  .from("#eclipse", {opacity:0, scale:.55, duration:1.7, ease:"back.out(1.4)"}, .5)
+  .fromTo("#titleWrap", {opacity:0, letterSpacing:"0.5em", filter:"blur(14px)"},
+                        {opacity:1, letterSpacing:"0.12em", filter:"blur(0px)", duration:1.5, clearProps:"filter"}, 1.3)
+  .from("#slogan", {opacity:0, y:16, duration:.9}, 2.0)
+  .from("#timer", {opacity:0, scale:.85, duration:.9}, 2.2)
+  .from("#barWrap", {opacity:0, scaleX:.3, duration:.9}, 2.5)
+  .from("#vtWrap", {opacity:0, x:200, duration:1.4}, 1.0);
+
+setInterval(tick, 250); tick();
+</script>
+</body>
+</html>

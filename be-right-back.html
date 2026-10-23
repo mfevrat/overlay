@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Be Right Back – Overlay VTuber</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Cormorant+Garamond:ital,wght@1,500&family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   1) VARIABLES — change tes couleurs ici
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --violet-deep:#4B0082;
+  --violet:#6A0DAD;
+  --magenta:#B5179E;
+  --charcoal:#0D0D12;
+  --charcoal-2:#1A1A22;
+  --gold:#C9A24B;
+  --gold-light:#F3DC9A;
+  --crystal:#3FA9FF;
+  --crystal-light:#6FE7FF;
+  --crimson:#D6204E;
+  --silver:#D9D9E3;
+
+  --font-title:'Cinzel','Times New Roman',serif;
+  --font-slogan:'Cormorant Garamond',Georgia,serif;
+  --font-digits:'Orbitron','Arial Black',sans-serif;
+  --font-ui:'Rajdhani','Segoe UI',sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+
+#stage{
+  position:absolute;left:50%;top:50%;
+  width:1920px;height:1080px;
+  transform-origin:center center;
+  /* Ambiance plus froide et apaisante que "Starting Soon" */
+  background:radial-gradient(ellipse 60% 55% at 50% 38%, #1b0f3d 0%, #0f0a22 45%, var(--charcoal) 100%);
+  overflow:hidden;
+}
+
+#grain{
+  position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;pointer-events:none;z-index:50;
+  background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+}
+#vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:40;
+  background:radial-gradient(ellipse 75% 75% at 50% 50%, transparent 55%, rgba(5,3,10,.85) 100%);
+}
+
+/* ── Brume (plus lente, teintée de bleu) ── */
+.mist{position:absolute;width:1300px;height:900px;border-radius:50%;pointer-events:none;will-change:transform;z-index:1}
+.mist.m1{left:-300px;top:380px;background:radial-gradient(closest-side, rgba(106,13,173,.32), transparent);animation:drift1 55s ease-in-out infinite alternate}
+.mist.m2{right:-350px;top:120px;background:radial-gradient(closest-side, rgba(63,169,255,.18), transparent);animation:drift2 62s ease-in-out infinite alternate}
+.mist.m3{left:300px;bottom:-420px;width:1500px;background:radial-gradient(closest-side, rgba(181,23,158,.18), transparent);animation:drift3 70s ease-in-out infinite alternate}
+@keyframes drift1{to{transform:translate(260px,-90px) scale(1.15)}}
+@keyframes drift2{to{transform:translate(-300px,140px) scale(.9)}}
+@keyframes drift3{to{transform:translate(-220px,-70px) scale(1.2)}}
+
+canvas#particles{position:absolute;inset:0;z-index:3;pointer-events:none}
+
+/* ── Rouages ── */
+#gears{position:absolute;inset:0;z-index:2}
+.gearWrap{position:absolute}
+.gearWrap svg{display:block;animation:spin var(--dur,60s) linear infinite;will-change:transform}
+.gearWrap.rev svg{animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#main{position:absolute;inset:0;z-index:10}
+#main.withVtuber{transform:translateX(-300px)}
+
+/* ── Horloge steampunk (élément signature) ── */
+#clock{position:absolute;left:740px;top:70px;width:440px;height:440px}
+#clock svg{width:100%;height:100%;overflow:visible}
+.coronaPulse{transform-origin:220px 220px;animation:pulse 8s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(.94);opacity:.8}50%{transform:scale(1.06);opacity:1}}
+.ringA{transform-origin:220px 220px;animation:spin 100s linear infinite}
+.ringB{transform-origin:220px 220px;animation:spin 70s linear infinite reverse}
+.shard{animation:shardPulse 5s ease-in-out infinite}
+@keyframes shardPulse{0%,100%{opacity:.3}50%{opacity:1}}
+.hand{transform-origin:220px 220px;animation-name:spin;animation-timing-function:linear;animation-iteration-count:infinite}
+.subShade{animation:subEclipse 12s ease-in-out infinite alternate}
+@keyframes subEclipse{0%{transform:translate(7px,-3px)}100%{transform:translate(2px,-1px)}}
+.jewel{animation:jewel 3.5s ease-in-out infinite}
+@keyframes jewel{0%,100%{opacity:.55}50%{opacity:1}}
+
+/* ── Titre ── */
+#titleWrap{position:absolute;left:0;width:1920px;top:520px;text-align:center;letter-spacing:.12em}
+#titleWrap h1{font-family:var(--font-title);font-weight:800;font-size:106px;line-height:1.15;white-space:nowrap}
+#titleWrap h1.main{
+  position:relative;
+  background:linear-gradient(100deg,#8a6a22 0%,var(--gold) 25%,var(--gold-light) 45%,var(--gold) 60%,#8a6a22 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(63,169,255,.45)) drop-shadow(0 4px 0 rgba(0,0,0,.6));
+  animation:shine 8s linear infinite;
+}
+@keyframes shine{from{background-position:120% 0}to{background-position:-100% 0}}
+#titleWrap h1.ghost{position:absolute;left:0;right:0;top:0;opacity:0;mix-blend-mode:screen;pointer-events:none}
+#titleWrap h1.ghost.c{color:var(--crystal-light);-webkit-text-fill-color:var(--crystal-light)}
+#titleWrap h1.ghost.r{color:var(--crimson);-webkit-text-fill-color:var(--crimson)}
+
+#slogan{
+  position:absolute;left:0;width:1920px;top:668px;text-align:center;
+  font-family:var(--font-slogan);font-style:italic;font-weight:500;font-size:42px;
+  letter-spacing:.06em;color:var(--silver);text-shadow:0 0 18px rgba(106,13,173,.9);
+}
+
+/* ── Compteur de pause ── */
+#timerLabel{
+  position:absolute;left:0;width:1920px;top:742px;text-align:center;
+  font-family:var(--font-ui);font-weight:600;font-size:28px;letter-spacing:.14em;color:var(--gold);
+}
+#timer{
+  position:absolute;left:0;width:1920px;top:778px;text-align:center;
+  font-family:var(--font-digits);font-weight:800;font-size:80px;letter-spacing:.08em;line-height:1.2;
+  background:linear-gradient(180deg,var(--gold-light),var(--gold) 55%,#8a6a22);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(63,169,255,.45));
+}
+#timer i{font-style:normal;animation:blink 1s steps(1) infinite}
+@keyframes blink{0%{opacity:1}50%{opacity:.2}}
+
+/* ── Séparateur ornemental ── */
+#divider{position:absolute;left:560px;top:902px;width:800px;height:24px}
+#divider .line{
+  position:absolute;top:11px;height:2px;width:350px;
+  background:linear-gradient(90deg,transparent,var(--gold));
+}
+#divider .line.l{left:0}
+#divider .line.r{right:0;transform:scaleX(-1)}
+#divider .gem{
+  position:absolute;left:388px;top:2px;width:20px;height:20px;
+  background:linear-gradient(135deg,var(--crystal-light),var(--violet));
+  border:2px solid var(--gold);transform:rotate(45deg);
+  animation:gem 3.5s ease-in-out infinite;
+}
+@keyframes gem{
+  0%,100%{box-shadow:0 0 8px rgba(63,169,255,.5)}
+  50%{box-shadow:0 0 26px rgba(111,231,255,.95)}
+}
+#divider .line::after{
+  content:"";position:absolute;inset:-1px 0;
+  background:linear-gradient(90deg,transparent 40%,rgba(255,255,255,.8) 50%,transparent 60%);
+  background-size:300% 100%;animation:sweep 5s linear infinite;
+}
+@keyframes sweep{from{background-position:200% 0}to{background-position:-100% 0}}
+
+/* ── Réseaux ── */
+#socials{
+  position:absolute;left:0;width:1920px;top:965px;height:50px;text-align:center;
+  font-family:var(--font-ui);font-weight:600;font-size:32px;letter-spacing:.08em;
+}
+#socials span{display:inline-block}
+#socials .lab{color:var(--gold);margin-right:18px}
+#socials .val{color:var(--silver)}
+
+/* ── Cadre ── */
+#frame{position:absolute;inset:0;z-index:20;pointer-events:none}
+#frame path.draw{stroke-dasharray:1;stroke-dashoffset:0}
+
+/* ── VTuber (optionnel) ── */
+#vtWrap{
+  position:absolute;right:50px;bottom:0;height:960px;z-index:15;display:none;
+  transform-origin:50% 100%;animation:breathe 5s ease-in-out infinite;
+}
+#vtWrap img{height:100%;display:block;filter:drop-shadow(0 0 30px rgba(106,13,173,.7))}
+@keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.012)}}
+
+#flash{
+  position:absolute;inset:0;z-index:60;opacity:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 35%, #fff 0%, #c58bff 30%, transparent 70%);
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3DC9A"/>
+      <stop offset=".5" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#7a5a1c"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div id="stage">
+  <div class="mist m1"></div>
+  <div class="mist m2"></div>
+  <div class="mist m3"></div>
+
+  <div id="gears"></div>
+  <canvas id="particles" width="1920" height="1080"></canvas>
+
+  <div id="main">
+
+    <!-- HORLOGE : indique l'heure réelle de ton ordinateur -->
+    <div id="clock">
+      <svg viewBox="0 0 440 440">
+        <defs>
+          <radialGradient id="corona" cx="50%" cy="50%" r="50%">
+            <stop offset="0.45" stop-color="#6A0DAD" stop-opacity=".6"/>
+            <stop offset="0.7" stop-color="#3FA9FF" stop-opacity=".2"/>
+            <stop offset="1" stop-color="#4B0082" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="face" cx="50%" cy="40%" r="70%">
+            <stop offset="0" stop-color="#241047"/>
+            <stop offset="1" stop-color="#08060f"/>
+          </radialGradient>
+          <radialGradient id="sun" cx="40%" cy="60%" r="70%">
+            <stop offset="0" stop-color="#fff3c4"/>
+            <stop offset=".45" stop-color="#C9A24B"/>
+            <stop offset="1" stop-color="#B5179E"/>
+          </radialGradient>
+          <linearGradient id="crystalG" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#3FA9FF" stop-opacity=".1"/>
+            <stop offset="1" stop-color="#6FE7FF"/>
+          </linearGradient>
+          <filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+        </defs>
+
+        <circle class="coronaPulse" cx="220" cy="220" r="215" fill="url(#corona)"/>
+
+        <g class="ringB">
+          <circle cx="220" cy="220" r="178" fill="none" stroke="#6FE7FF" stroke-opacity=".5" stroke-width="2" stroke-dasharray="34 22 4 22"/>
+        </g>
+        <g class="ringA">
+          <circle cx="220" cy="220" r="160" fill="none" stroke="#C9A24B" stroke-width="7" stroke-dasharray="2 15"/>
+        </g>
+
+        <g id="shards"></g>
+
+        <!-- Lunette dorée + cadran -->
+        <circle cx="220" cy="220" r="146" fill="#0b0910" stroke="url(#goldG)" stroke-width="9"/>
+        <circle cx="220" cy="220" r="152" fill="none" stroke="#C9A24B" stroke-opacity=".55" stroke-width="1.2"/>
+        <circle cx="220" cy="220" r="138" fill="url(#face)"/>
+        <g id="ticks"></g>
+        <g id="numerals" font-family="Cinzel, serif" font-weight="600" font-size="19" fill="#C9A24B" text-anchor="middle" dominant-baseline="central"></g>
+
+        <!-- Mini-cadran éclipse -->
+        <g>
+          <circle cx="220" cy="168" r="23" fill="none" stroke="#C9A24B" stroke-width="2"/>
+          <circle cx="220" cy="168" r="14" fill="#B5179E" opacity=".6" filter="url(#blur6)"/>
+          <circle cx="220" cy="168" r="13" fill="url(#sun)"/>
+          <circle class="subShade" cx="220" cy="168" r="12.4" fill="#07060c"/>
+        </g>
+
+        <!-- Aiguilles (angle de départ 12h, rotation pilotée par l'heure réelle) -->
+        <g class="hand" id="hHour">
+          <path d="M220 236 L214 220 L220 150 L226 220 Z" fill="#C9A24B" stroke="#7a5a1c" stroke-width="1.2"/>
+        </g>
+        <g class="hand" id="hMin">
+          <path d="M220 240 L216 220 L220 106 L224 220 Z" fill="#F3DC9A" stroke="#7a5a1c" stroke-width="1"/>
+        </g>
+        <g class="hand" id="hSec">
+          <line x1="220" y1="248" x2="220" y2="98" stroke="#D6204E" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="220" cy="250" r="6" fill="#D6204E"/>
+        </g>
+        <circle cx="220" cy="220" r="9" fill="url(#goldG)" stroke="#7a5a1c" stroke-width="1.5"/>
+        <circle class="jewel" cx="220" cy="220" r="3.6" fill="#D6204E"/>
+
+        <!-- Reflet de verre -->
+        <path d="M110 150 A125 125 0 0 1 250 98" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="10" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div id="titleWrap">
+      <h1 class="ghost r" aria-hidden="true"></h1>
+      <h1 class="ghost c" aria-hidden="true"></h1>
+      <h1 class="main"></h1>
+    </div>
+
+    <div id="slogan"></div>
+    <div id="timerLabel"></div>
+    <div id="timer"></div>
+
+    <div id="divider"><div class="line l"></div><div class="gem"></div><div class="line r"></div></div>
+
+    <div id="socials"></div>
+  </div>
+
+  <div id="vtWrap"><img id="vtuber" alt=""></div>
+
+  <svg id="frame" viewBox="0 0 1920 1080">
+    <rect x="30" y="30" width="1860" height="1020" fill="none" stroke="#C9A24B" stroke-opacity=".28" stroke-width="1.5"/>
+    <g fill="none" stroke="#C9A24B" stroke-width="4" stroke-linecap="square">
+      <path class="draw" pathLength="1" d="M30 130 V30 H130"/>
+      <path class="draw" pathLength="1" d="M1790 30 H1890 V130"/>
+      <path class="draw" pathLength="1" d="M30 950 V1050 H130"/>
+      <path class="draw" pathLength="1" d="M1890 950 V1050 H1790"/>
+    </g>
+    <g fill="#C9A24B">
+      <rect x="22" y="22" width="16" height="16" transform="rotate(45 30 30)"/>
+      <rect x="1882" y="22" width="16" height="16" transform="rotate(45 1890 30)"/>
+      <rect x="22" y="1042" width="16" height="16" transform="rotate(45 30 1050)"/>
+      <rect x="1882" y="1042" width="16" height="16" transform="rotate(45 1890 1050)"/>
+    </g>
+  </svg>
+
+  <div id="vignette"></div>
+  <div id="grain"></div>
+  <div id="flash"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   2) CONFIGURATION — modifie tes textes ici
+   ════════════════════════════════════════════════════════════
+   Paramètres d'URL (optionnels) :
+     (rien)            → compteur qui monte : "Pause depuis 03:12"
+     ?minutes=10       → compte à rebours : "Retour dans 10:00"
+     ?name=MonPseudo
+*/
+const CONFIG = {
+  pseudo:  "TonPseudo",
+  title:   "Be Right Back",
+  slogan:  "L’ombre s’éloigne un instant…",
+  labelUp:   "Pause depuis",
+  labelDown: "Retour dans",
+  endText:   "Me revoilà !",
+  minutes: 0,                       // 0 = compteur qui monte
+  vtuberImage: "",                  // ex : "vtuber.png" (PNG transparent)
+  socials: [
+    { label: "Twitter / X", value: "@TonPseudo" },
+    { label: "Discord",     value: "discord.gg/tonlien" },
+    { label: "YouTube",     value: "youtube.com/@TonPseudo" },
+    { label: "TikTok",      value: "@TonPseudo" }
+  ],
+  socialInterval: 3.6
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get("name"))    CONFIG.pseudo = params.get("name");
+if (params.get("minutes")) CONFIG.minutes = parseFloat(params.get("minutes"));
+
+/* ════════════════════════════════════════════════════════════
+   3) MISE À L'ÉCHELLE
+   ════════════════════════════════════════════════════════════ */
+const stage = document.getElementById("stage");
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+/* ════════════════════════════════════════════════════════════
+   4) TEXTES
+   ════════════════════════════════════════════════════════════ */
+document.querySelectorAll("#titleWrap h1").forEach(h => h.textContent = CONFIG.title);
+document.getElementById("slogan").textContent = CONFIG.slogan;
+
+/* ════════════════════════════════════════════════════════════
+   5) ROUAGES
+   ════════════════════════════════════════════════════════════ */
+function makeGear(cx, cy, teeth, ro, ri, durSec, reverse, opacity){
+  const size = (ro + 8) * 2, c = size / 2, step = Math.PI * 2 / teeth;
+  const pol = (r, a) => [(c + r*Math.cos(a)).toFixed(1), (c + r*Math.sin(a)).toFixed(1)];
+  const pts = [];
+  for (let i = 0; i < teeth; i++){
+    const a = i * step;
+    pts.push(pol(ri, a - step*.30), pol(ro, a - step*.17), pol(ro, a + step*.17), pol(ri, a + step*.30));
+  }
+  const d = "M" + pts.map(p => p.join(",")).join("L") + "Z";
+  let spokes = "";
+  for (let i = 0; i < 6; i++){
+    const a = i * Math.PI / 3, p1 = pol(ri*.30, a), p2 = pol(ri*.80, a);
+    spokes += `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="#C9A24B" stroke-opacity=".7" stroke-width="${Math.max(3, ri*.05)}"/>`;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "gearWrap" + (reverse ? " rev" : "");
+  wrap.style.cssText = `left:${cx-size/2}px;top:${cy-size/2}px;width:${size}px;height:${size}px;opacity:${opacity};--dur:${durSec}s`;
+  wrap.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <path d="${d}" fill="#0e0d14" stroke="url(#goldG)" stroke-width="3.5" stroke-linejoin="round"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.86}" fill="none" stroke="#C9A24B" stroke-opacity=".55" stroke-width="2"/>
+    ${spokes}
+    <circle cx="${c}" cy="${c}" r="${ri*.30}" fill="#07060c" stroke="url(#goldG)" stroke-width="3"/>
+    <circle cx="${c}" cy="${c}" r="${ri*.10}" fill="#C9A24B"/>
+  </svg>`;
+  document.getElementById("gears").appendChild(wrap);
+}
+/* Rotation très lente pour une ambiance calme */
+makeGear(140,  940, 24, 190, 165, 160, false, .8);
+makeGear(330,  722, 14, 112,  94,  93, true,  .8);
+makeGear(1780, 940, 24, 190, 165, 160, true,  .8);
+makeGear(1590, 722, 14, 112,  94,  93, false, .8);
+makeGear(40,    60, 18, 120, 102, 120, false, .5);
+makeGear(1880,  60, 18, 120, 102, 120, true,  .5);
+
+/* ════════════════════════════════════════════════════════════
+   6) HORLOGE : graduations, chiffres romains, éclats, aiguilles
+   ════════════════════════════════════════════════════════════ */
+(function buildClock(){
+  const ticks = document.getElementById("ticks");
+  for (let i = 0; i < 60; i++){
+    const major = i % 5 === 0;
+    ticks.insertAdjacentHTML("beforeend",
+      `<line transform="rotate(${i*6} 220 220)" x1="220" y1="${220-130}" x2="220" y2="${220-(major?118:125)}"
+        stroke="${major ? '#F3DC9A' : '#C9A24B'}" stroke-opacity="${major ? 1 : .55}" stroke-width="${major ? 3 : 1.2}"/>`);
+  }
+  const roman = ["XII","I","II","III","IV","V","VI","VII","VIII","IX","X","XI"];
+  const nums = document.getElementById("numerals");
+  roman.forEach((t, i) => {
+    const a = (i * 30 - 90) * Math.PI / 180, r = 96;
+    nums.insertAdjacentHTML("beforeend",
+      `<text x="${(220 + r*Math.cos(a)).toFixed(1)}" y="${(220 + r*Math.sin(a)).toFixed(1)}">${t}</text>`);
+  });
+  const shards = document.getElementById("shards");
+  const n = 10;
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * 360 + 18, len = i % 2 ? 26 : 42, base = 188;
+    shards.insertAdjacentHTML("beforeend",
+      `<polygon class="shard" style="animation-delay:${(i*.5).toFixed(2)}s" transform="rotate(${a} 220 220)"
+        points="${220-8},${220-base} ${220+8},${220-base} ${220},${220-base-len}"
+        fill="url(#crystalG)" stroke="#6FE7FF" stroke-opacity=".6" stroke-width="1"/>`);
+  }
+  /* Aiguilles synchronisées sur l'heure réelle : on joue l'animation avec un décalage négatif */
+  const now = new Date();
+  const sec = now.getSeconds() + now.getMilliseconds()/1000;
+  const min = now.getMinutes() * 60 + sec;
+  const hr  = (now.getHours() % 12) * 3600 + min;
+  const set = (id, dur, elapsed) => {
+    const el = document.getElementById(id);
+    el.style.animationDuration = dur + "s";
+    el.style.animationDelay = (-elapsed) + "s";
+  };
+  set("hSec", 60, sec);
+  set("hMin", 3600, min);
+  set("hHour", 43200, hr);
+})();
+
+/* ════════════════════════════════════════════════════════════
+   7) PARTICULES (plus rares et plus lentes)
+   ════════════════════════════════════════════════════════════ */
+(function particles(){
+  const cv = document.getElementById("particles"), ctx = cv.getContext("2d");
+  function sprite(rgb){
+    const s = document.createElement("canvas"); s.width = s.height = 48;
+    const g = s.getContext("2d"), grd = g.createRadialGradient(24,24,0,24,24,24);
+    grd.addColorStop(0, `rgba(${rgb},1)`); grd.addColorStop(.25, `rgba(${rgb},.55)`); grd.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = grd; g.fillRect(0,0,48,48); return s;
+  }
+  const sprites = [sprite("150,60,230"), sprite("111,231,255"), sprite("243,220,154"), sprite("181,23,158")];
+  const P = [], rand = (a,b) => a + Math.random()*(b-a);
+  function spawn(p, initial){
+    p.x = rand(0,1920); p.y = initial ? rand(0,1080) : 1100;
+    p.s = rand(6,20); p.v = rand(8,30); p.sw = rand(14,50); p.ph = rand(0,6.28);
+    p.sp = rand(.25,.7); p.t = sprites[(Math.random()*sprites.length)|0]; p.a = rand(.3,.85);
+    return p;
+  }
+  for (let i = 0; i < 60; i++) P.push(spawn({}, true));
+  let last = performance.now();
+  (function loop(now){
+    const dt = Math.min(.05, (now - last)/1000); last = now;
+    ctx.clearRect(0,0,1920,1080);
+    for (const p of P){
+      p.y -= p.v*dt; p.ph += p.sp*dt;
+      if (p.y < -40) spawn(p, false);
+      ctx.globalAlpha = p.a * (.6 + .4*Math.sin(p.ph*3));
+      ctx.drawImage(p.t, p.x + Math.sin(p.ph)*p.sw - p.s, p.y - p.s, p.s*2, p.s*2);
+    }
+    requestAnimationFrame(loop);
+  })(last);
+})();
+
+/* ════════════════════════════════════════════════════════════
+   8) VTUBER (optionnel)
+   ════════════════════════════════════════════════════════════ */
+if (CONFIG.vtuberImage){
+  document.getElementById("vtuber").src = CONFIG.vtuberImage;
+  document.getElementById("vtWrap").style.display = "block";
+  document.getElementById("main").classList.add("withVtuber");
+}
+
+/* ════════════════════════════════════════════════════════════
+   9) COMPTEUR DE PAUSE
+   ════════════════════════════════════════════════════════════ */
+const timerEl = document.getElementById("timer");
+const labelEl = document.getElementById("timerLabel");
+const startTs = Date.now();
+const countdown = CONFIG.minutes > 0;
+const targetTs = startTs + CONFIG.minutes * 60000;
+labelEl.textContent = countdown ? CONFIG.labelDown : CONFIG.labelUp;
+let lastStr = "", finished = false, introDone = false;
+const pad = n => String(n).padStart(2, "0");
+
+function tick(){
+  const secs = countdown
+    ? Math.ceil(Math.max(0, targetTs - Date.now()) / 1000)
+    : Math.floor((Date.now() - startTs) / 1000);
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  const str = h > 0 ? `${h}<i>:</i>${pad(m)}<i>:</i>${pad(s)}` : `${pad(m)}<i>:</i>${pad(s)}`;
+  if (str !== lastStr){
+    timerEl.innerHTML = str; lastStr = str;
+    if (introDone && !finished) gsap.fromTo(timerEl, {scale:1.03}, {scale:1, duration:.35, ease:"power2.out"});
+  }
+  if (countdown && secs === 0 && !finished) onFinish();
+}
+
+function onFinish(){
+  finished = true;
+  const flash = document.getElementById("flash");
+  gsap.timeline()
+    .to(flash, {opacity:.9, duration:.15})
+    .to(flash, {opacity:0, duration:1.6, ease:"power2.out"})
+    .to("#clock", {scale:1.1, duration:.3, ease:"power2.out"}, 0)
+    .to("#clock", {scale:1, duration:1.4, ease:"elastic.out(1,.4)"}, .3);
+  gsap.to("#slogan", {opacity:0, y:-10, duration:.4, onComplete(){
+    document.getElementById("slogan").textContent = CONFIG.endText;
+    gsap.to("#slogan", {opacity:1, y:0, duration:.6});
+  }});
+  gsap.to(timerEl, {opacity:.55, duration:1.2, repeat:-1, yoyo:true, ease:"sine.inOut"});
+}
+
+/* ════════════════════════════════════════════════════════════
+   10) RÉSEAUX SOCIAUX (rotation)
+   ════════════════════════════════════════════════════════════ */
+const socEl = document.getElementById("socials");
+const socItems = [{label: "Chaîne", value: CONFIG.pseudo}, ...CONFIG.socials];
+let socIdx = 0;
+function showSocial(){
+  const it = socItems[socIdx % socItems.length]; socIdx++;
+  socEl.innerHTML = `<span class="lab">${it.label}</span><span class="val">${it.value}</span>`;
+  gsap.fromTo(socEl.children, {opacity:0, y:14}, {opacity:1, y:0, duration:.6, stagger:.1, ease:"power2.out"});
+  gsap.to(socEl.children, {opacity:0, y:-10, duration:.5, delay:CONFIG.socialInterval - .5, ease:"power1.in"});
+}
+
+/* ════════════════════════════════════════════════════════════
+   11) GLITCH DU TITRE (rare et discret)
+   ════════════════════════════════════════════════════════════ */
+function glitch(){
+  const r = document.querySelector("#titleWrap .ghost.r"), c = document.querySelector("#titleWrap .ghost.c");
+  gsap.timeline({onComplete(){ gsap.delayedCall(gsap.utils.random(8, 14), glitch); }})
+    .set([r, c], {opacity:.8})
+    .to(r, {x:-8, duration:.05}).to(c, {x:8, duration:.05}, "<")
+    .to(r, {x:4, duration:.04}).to(c, {x:-3, duration:.04}, "<")
+    .set([r, c], {opacity:0, x:0});
+}
+
+/* ════════════════════════════════════════════════════════════
+   12) INTRO (GSAP)
+   ════════════════════════════════════════════════════════════ */
+const tl = gsap.timeline({defaults:{ease:"power3.out"}, onComplete(){
+  introDone = true;
+  showSocial(); setInterval(showSocial, CONFIG.socialInterval * 1000);
+  gsap.delayedCall(4, glitch);
+}});
+tl.from("#frame path.draw", {strokeDashoffset:1, duration:1.6, ease:"power2.inOut", stagger:.1}, 0)
+  .from("#frame rect", {opacity:0, duration:.8}, .8)
+  .from(".gearWrap", {opacity:0, scale:.6, duration:1.4, stagger:.12}, .2)
+  .from("#clock", {opacity:0, scale:.6, rotation:-12, duration:1.8, ease:"back.out(1.3)"}, .5)
+  .fromTo("#titleWrap", {opacity:0, letterSpacing:"0.5em", filter:"blur(14px)"},
+                        {opacity:1, letterSpacing:"0.12em", filter:"blur(0px)", duration:1.5, clearProps:"filter"}, 1.3)
+  .from("#slogan", {opacity:0, y:16, duration:.9}, 2.0)
+  .from("#timerLabel", {opacity:0, y:10, duration:.7}, 2.2)
+  .from("#timer", {opacity:0, scale:.85, duration:.9}, 2.3)
+  .from("#divider", {opacity:0, scaleX:.3, duration:.9}, 2.6)
+  .from("#vtWrap", {opacity:0, x:200, duration:1.4}, 1.0);
+
+setInterval(tick, 250); tick();
+</script>
+</body>
+</html>
